@@ -111,7 +111,7 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
      */
     if (systemRoot != NULL && !strncmp(absoluteFile, systemRoot, strlen(systemRoot))) {
         property_get("dalvik.vm.dexopt-data-only", dexoptDataOnly, "");
-        if (!strcmp(dexoptDataOnly, "1")) {
+        if (strcmp(dexoptDataOnly, "1") != 0) {
             dataRoot = cacheRoot;
         }
     }
