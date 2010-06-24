@@ -32,6 +32,8 @@
 #include "OptInvocation.h"
 #include "DexFile.h"
 
+#include <cutils/properties.h>
+
 static const char* kCacheDirectoryName = "dalvik-cache";
 static const char* kClassesDex = "classes.dex";
 
@@ -50,7 +52,11 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
     char absoluteFile[sizeof(nameBuf)];
     const size_t kBufLen = sizeof(nameBuf) - 1;
     const char* dataRoot;
+    const char* dexRoot;
+    const char* cacheRoot;
+    const char* systemRoot;
     char* cp;
+    char dexoptDataOnly[PROPERTY_VALUE_MAX];
 
     /*
      * Get the absolute path of the Jar or DEX file.
@@ -93,10 +99,34 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
 
     /* Build the name of the cache directory.
      */
+
+    /* load paths from the system environment */
+    cacheRoot = getenv("ANDROID_CACHE");
     dataRoot = getenv("ANDROID_DATA");
+    systemRoot = getenv("ANDROID_ROOT");
+
+    /* make sure we didn't get any NULL values */
+    if (cacheRoot == NULL)
+        cacheRoot = "/cache";
+
     if (dataRoot == NULL)
         dataRoot = "/data";
-    snprintf(nameBuf, kBufLen, "%s/%s", dataRoot, kCacheDirectoryName);
+
+    if (systemRoot == NULL)
+        systemRoot = "/system";
+
+    if (dexRoot == NULL)
+        dexRoot = "/data";
+
+    /* Cache anything stored on /system in cacheRoot, everything else in dataRoot */
+    if (!strncmp(absoluteFile, systemRoot, strlen(systemRoot))) {
+        property_get("dalvik.vm.dexopt-data-only", dexoptDataOnly, "");
+        if (strcmp(dexoptDataOnly, "1") != 0) {
+            dexRoot = cacheRoot;
+        }
+    }
+
+    snprintf(nameBuf, kBufLen, "%s/%s", dexRoot, kCacheDirectoryName);
 
     /* Tack on the file name for the actual cache file path.
      */
