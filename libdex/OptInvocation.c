@@ -30,6 +30,8 @@
 #include "OptInvocation.h"
 #include "DexFile.h"
 
+#include <cutils/properties.h>
+
 static const char* kClassesDex = "classes.dex";
 
 
@@ -53,6 +55,7 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
     const char* cacheRoot;
     const char* systemRoot;
     char* cp;
+    char dexoptDataOnly[PROPERTY_VALUE_MAX];
 
     /*
      * Get the absolute path of the Jar or DEX file.
@@ -115,8 +118,12 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
         dexRoot = "/data";
 
     /* Cache anything stored on /system in cacheRoot, everything else in dataRoot */
-    if (!strncmp(absoluteFile, systemRoot, strlen(systemRoot)))
-        dexRoot = cacheRoot;
+    if (!strncmp(absoluteFile, systemRoot, strlen(systemRoot))) {
+        property_get("dalvik.vm.dexopt-data-only", dexoptDataOnly, "");
+        if (strcmp(dexoptDataOnly, "1") != 0) {
+            dexRoot = cacheRoot;
+        }
+    }
 
     snprintf(nameBuf, kBufLen, "%s/%s", dexRoot, kDexCachePath);
 
