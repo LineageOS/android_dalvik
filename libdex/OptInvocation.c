@@ -49,6 +49,9 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
     char absoluteFile[sizeof(nameBuf)];
     const size_t kBufLen = sizeof(nameBuf) - 1;
     const char* dataRoot;
+    const char* dexRoot;
+    const char* cacheRoot;
+    const char* systemRoot;
     char* cp;
 
     /*
@@ -92,10 +95,30 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
 
     /* Build the name of the cache directory.
      */
+
+    /* load paths from the system environment */
+    cacheRoot = getenv("ANDROID_CACHE");
     dataRoot = getenv("ANDROID_DATA");
+    systemRoot = getenv("ANDROID_ROOT");
+
+    /* make sure we didn't get any NULL values */
+    if (cacheRoot == NULL)
+        cacheRoot = "/cache";
+
     if (dataRoot == NULL)
         dataRoot = "/data";
-    snprintf(nameBuf, kBufLen, "%s/%s", dataRoot, kDexCachePath);
+
+    if (systemRoot == NULL)
+        systemRoot = "/system";
+
+    if (dexRoot == NULL)
+        dexRoot = "/data";
+
+    /* Cache anything stored on /system in cacheRoot, everything else in dataRoot */
+    if (!strncmp(absoluteFile, systemRoot, strlen(systemRoot)))
+        dexRoot = cacheRoot;
+
+    snprintf(nameBuf, kBufLen, "%s/%s", dexRoot, kDexCachePath);
 
     /* Tack on the file name for the actual cache file path.
      */
