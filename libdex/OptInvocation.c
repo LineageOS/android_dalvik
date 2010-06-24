@@ -30,8 +30,6 @@
 #include "OptInvocation.h"
 #include "DexFile.h"
 
-#include <cutils/properties.h>
-
 static const char* kClassesDex = "classes.dex";
 
 
@@ -51,11 +49,7 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
     char absoluteFile[sizeof(nameBuf)];
     const size_t kBufLen = sizeof(nameBuf) - 1;
     const char* dataRoot;
-    const char* systemRoot;
-    const char* sdExtRoot;
-    const char* cacheRoot;
     char* cp;
-    char dexoptDataOnly[PROPERTY_VALUE_MAX];
 
     /*
      * Get the absolute path of the Jar or DEX file.
@@ -85,40 +79,6 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
         strncat(absoluteFile, subFileName, kBufLen);
     }
 
-    dataRoot = getenv("ANDROID_DATA");
-    systemRoot = getenv("ANDROID_ROOT");
-    sdExtRoot = getenv("SD_EXT_DIRECTORY");
-    cacheRoot = getenv("CACHE_ROOT");
-
-    /* Set some default values just in case the enviornment variables
-     * do not exist.  This will probably never happen, but is good
-     * practice nonetheless.
-     */
-    if (dataRoot == NULL)
-        dataRoot = "/data";
-
-    if (systemRoot == NULL)
-        systemRoot = "/system";
-    
-    if (sdExtRoot == NULL)
-        sdExtRoot = "/sd-ext";
-
-    if (cacheRoot == NULL)
-        cacheRoot = "/cache";
-    
-    /* Determine where to store dalvik-cache based on the
-     * location of the binary we are dexopt'ing
-     */
-    if (systemRoot != NULL && !strncmp(absoluteFile, systemRoot, strlen(systemRoot))) {
-        property_get("dalvik.vm.dexopt-data-only", dexoptDataOnly, "");
-        if (strcmp(dexoptDataOnly, "1") != 0) {
-            dataRoot = cacheRoot;
-        }
-    }
-
-    if (sdExtRoot != NULL && !strncmp(absoluteFile, sdExtRoot, strlen(sdExtRoot)))
-        dataRoot = sdExtRoot;
-
     /* Turn the path into a flat filename by replacing
      * any slashes after the first one with '@' characters.
      */
@@ -132,6 +92,9 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
 
     /* Build the name of the cache directory.
      */
+    dataRoot = getenv("ANDROID_DATA");
+    if (dataRoot == NULL)
+        dataRoot = "/data";
     snprintf(nameBuf, kBufLen, "%s/%s", dataRoot, kDexCachePath);
 
     /* Tack on the file name for the actual cache file path.
