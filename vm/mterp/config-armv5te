@@ -40,6 +40,24 @@ import armv5te/entry.S
 # opcode list; argument to op-start is default directory
 op-start armv5te
     #op OP_FILL_ARRAY_DATA c
+    # use trivial integer operation
+    op OP_NEG_DOUBLE armv5te
+    op OP_NEG_FLOAT armv5te
+
+    # use __aeabi_* functions
+    op OP_DOUBLE_TO_LONG armv5te
+    op OP_FLOAT_TO_LONG armv5te
+    op OP_LONG_TO_DOUBLE armv5te
+    op OP_LONG_TO_FLOAT armv5te
+
+    # no "remainder" op in vfp or libgcc.a; use libc function
+    op OP_REM_DOUBLE armv5te
+    op OP_REM_DOUBLE_2ADDR armv5te
+    op OP_REM_FLOAT armv5te
+    op OP_REM_FLOAT_2ADDR armv5te
+    op OP_INT_TO_BYTE armv6
+    op OP_INT_TO_CHAR armv6
+    op OP_INT_TO_SHORT armv6
 op-end
 
 # "helper" code for C; include if you use any of the C stubs (this generates
