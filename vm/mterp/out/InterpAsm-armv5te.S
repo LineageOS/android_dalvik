@@ -4137,7 +4137,7 @@ d2i_doconv:
 /* ------------------------------ */
     .balign 64
 .L_OP_INT_TO_BYTE: /* 0x8d */
-/* File: armv6/OP_INT_TO_BYTE.S */
+/* File: armv5te/OP_INT_TO_BYTE.S */
 /* File: armv5te/unop.S */
     /*
      * Generic 32-bit unary operation.  Provide an "instr" line that
@@ -4152,9 +4152,9 @@ d2i_doconv:
     mov     r9, rINST, lsr #8           @ r9<- A+
     GET_VREG(r0, r3)                    @ r0<- vB
     and     r9, r9, #15
-                               @ optional op; may set condition codes
+    mov     r0, r0, asl #24                           @ optional op; may set condition codes
     FETCH_ADVANCE_INST(1)               @ advance rPC, load rINST
-    sxtb    r0, r0                              @ r0<- op, r0-r3 changed
+    mov     r0, r0, asr #24                              @ r0<- op, r0-r3 changed
     GET_INST_OPCODE(ip)                 @ extract opcode from rINST
     SET_VREG(r0, r9)                    @ vAA<- r0
     GOTO_OPCODE(ip)                     @ jump to next instruction
@@ -4164,7 +4164,7 @@ d2i_doconv:
 /* ------------------------------ */
     .balign 64
 .L_OP_INT_TO_CHAR: /* 0x8e */
-/* File: armv6/OP_INT_TO_CHAR.S */
+/* File: armv5te/OP_INT_TO_CHAR.S */
 /* File: armv5te/unop.S */
     /*
      * Generic 32-bit unary operation.  Provide an "instr" line that
@@ -4179,9 +4179,9 @@ d2i_doconv:
     mov     r9, rINST, lsr #8           @ r9<- A+
     GET_VREG(r0, r3)                    @ r0<- vB
     and     r9, r9, #15
-                               @ optional op; may set condition codes
+    mov     r0, r0, asl #16                           @ optional op; may set condition codes
     FETCH_ADVANCE_INST(1)               @ advance rPC, load rINST
-    uxth    r0, r0                              @ r0<- op, r0-r3 changed
+    mov     r0, r0, lsr #16                              @ r0<- op, r0-r3 changed
     GET_INST_OPCODE(ip)                 @ extract opcode from rINST
     SET_VREG(r0, r9)                    @ vAA<- r0
     GOTO_OPCODE(ip)                     @ jump to next instruction
@@ -4191,7 +4191,7 @@ d2i_doconv:
 /* ------------------------------ */
     .balign 64
 .L_OP_INT_TO_SHORT: /* 0x8f */
-/* File: armv6/OP_INT_TO_SHORT.S */
+/* File: armv5te/OP_INT_TO_SHORT.S */
 /* File: armv5te/unop.S */
     /*
      * Generic 32-bit unary operation.  Provide an "instr" line that
@@ -4206,9 +4206,9 @@ d2i_doconv:
     mov     r9, rINST, lsr #8           @ r9<- A+
     GET_VREG(r0, r3)                    @ r0<- vB
     and     r9, r9, #15
-                               @ optional op; may set condition codes
+    mov     r0, r0, asl #16                           @ optional op; may set condition codes
     FETCH_ADVANCE_INST(1)               @ advance rPC, load rINST
-    sxth    r0, r0                              @ r0<- op, r0-r3 changed
+    mov     r0, r0, asr #16                              @ r0<- op, r0-r3 changed
     GET_INST_OPCODE(ip)                 @ extract opcode from rINST
     SET_VREG(r0, r9)                    @ vAA<- r0
     GOTO_OPCODE(ip)                     @ jump to next instruction
