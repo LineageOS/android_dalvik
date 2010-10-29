@@ -54,6 +54,8 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
     const char* dexRoot;
     const char* cacheRoot;
     const char* systemRoot;
+    const char* asecRoot;
+    const char* asecDexRoot;
     char* cp;
     char dexoptDataOnly[PROPERTY_VALUE_MAX];
 
@@ -103,6 +105,8 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
     cacheRoot = getenv("ANDROID_CACHE");
     dataRoot = getenv("ANDROID_DATA");
     systemRoot = getenv("ANDROID_ROOT");
+    asecRoot = getenv("ASEC_MOUNTPOINT");
+
 
     /* make sure we didn't get any NULL values */
     if (cacheRoot == NULL)
@@ -116,6 +120,17 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
 
     if (dexRoot == NULL)
         dexRoot = "/data";
+
+    /* apps on sdcard will have dex files on sdcard as well */
+    if (asecRoot == NULL)
+        asecRoot = "/mnt/asec";
+
+    if (asecDexRoot == NULL)
+        asecDexRoot = "/mnt/asec";
+
+    /* Cache anything stored on /mnt/asec (sdcard) in asecDexRoot */
+    if (!strncmp(absoluteFile, asecRoot, strlen(asecRoot)))
+        dexRoot = asecDexRoot;
 
     /* Cache anything stored on /system in cacheRoot, everything else in dataRoot */
     if (!strncmp(absoluteFile, systemRoot, strlen(systemRoot))) {
