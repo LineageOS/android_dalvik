@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
+#define _CODEGEN_C
+#define _ARMV5TE_VFP
+
 #include "Dalvik.h"
 #include "interp/InterpDefs.h"
 #include "libdex/OpCode.h"
-#include "dexdump/OpCodeNames.h"
+#include "libdex/OpCodeNames.h"
 #include "compiler/CompilerInternals.h"
 #include "compiler/codegen/arm/ArmLIR.h"
 #include "mterp/common/FindInterface.h"
