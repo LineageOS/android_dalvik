@@ -2184,7 +2184,7 @@ static jobject PopLocalFrame(JNIEnv* env, jobject jresult)
     }
     jresult = addLocalReference(env, result);
     JNI_EXIT();
-    return result;
+    return jresult;
 }
 
 /*
