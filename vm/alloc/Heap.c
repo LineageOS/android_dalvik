@@ -37,6 +37,7 @@
 #include <limits.h>
 #include <errno.h>
 
+#ifndef NDEBUG
 static const char* GcReasonStr[] = {
     [GC_FOR_MALLOC] = "GC_FOR_MALLOC",
     [GC_CONCURRENT] = "GC_CONCURRENT",
@@ -44,6 +45,7 @@ static const char* GcReasonStr[] = {
     [GC_EXTERNAL_ALLOC] = "GC_EXTERNAL_ALLOC",
     [GC_HPROF_DUMP_HEAP] = "GC_HPROF_DUMP_HEAP"
 };
+#endif
 
 /*
  * Initialize the GC heap.
@@ -912,9 +914,11 @@ void dvmCollectGarbageInternal(bool clearSoftRefs, GcReason reason)
     percentFree = 100 - (size_t)(100.0f * (float)currAllocated / currFootprint);
     if (reason != GC_CONCURRENT) {
         u4 markSweepTime = dirtyEnd - rootStart;
+#ifndef NDEBUG
         bool isSmall = numBytesFreed > 0 && numBytesFreed < 1024;
+#endif
         totalTime = rootSuspendTime + markSweepTime;
-        LOGD("%s freed %s%zdK, %d%% free %zdK/%zdK, external %zdK/%zdK, "
+        LOGD_HEAP("%s freed %s%zdK, %d%% free %zdK/%zdK, external %zdK/%zdK, "
              "paused %ums",
              GcReasonStr[reason],
              isSmall ? "<" : "",
@@ -927,9 +931,11 @@ void dvmCollectGarbageInternal(bool clearSoftRefs, GcReason reason)
         u4 rootTime = rootEnd - rootStart;
         u4 dirtySuspendTime = dirtyStart - dirtySuspend;
         u4 dirtyTime = dirtyEnd - dirtyStart;
+#ifndef NDEBUG
         bool isSmall = numBytesFreed > 0 && numBytesFreed < 1024;
+#endif
         totalTime = rootSuspendTime + rootTime + dirtySuspendTime + dirtyTime;
-        LOGD("%s freed %s%zdK, %d%% free %zdK/%zdK, external %zdK/%zdK, "
+        LOGD_HEAP("%s freed %s%zdK, %d%% free %zdK/%zdK, external %zdK/%zdK, "
              "paused %ums+%ums",
              GcReasonStr[reason],
              isSmall ? "<" : "",
