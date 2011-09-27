@@ -22,6 +22,8 @@
  *
  */
 
+#include <machine/cpu-features.h>
+
 #include "compiler/CompilerIR.h"
 #include "CalloutHelper.h"
 
@@ -46,7 +48,7 @@ static bool genArithOpDoublePortable(CompilationUnit *cUnit, MIR *mir,
 static bool genConversionPortable(CompilationUnit *cUnit, MIR *mir);
 
 #if defined(WITH_DEADLOCK_PREDICTION) || defined(WITH_MONITOR_TRACKING) || \
-    defined(__ARM_ARCH_5__)
+    __ARM_ARCH__ < 7
 static void genMonitorPortable(CompilationUnit *cUnit, MIR *mir);
 #endif
 

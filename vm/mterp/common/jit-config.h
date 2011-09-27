@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-#if __ARM_ARCH_5TE__
+#include <machine/cpu-features.h>
+
+#if __ARM_ARCH__ < 7
 #define JIT_PROF_SIZE_LOG_2     9
 #else
 #define JIT_PROF_SIZE_LOG_2     11
