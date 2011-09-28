@@ -356,6 +356,7 @@ int dexZipOpenArchive(const char* fileName, ZipArchive* pArchive)
  *
  * On success, we fill out the contents of "pArchive" and return 0.
  */
+DEX_EXPORT
 int dexZipPrepArchive(int fd, const char* debugFileName, ZipArchive* pArchive)
 {
     int result = -1;
@@ -386,6 +387,7 @@ bail:
  *
  * NOTE: the ZipArchive may not have been fully created.
  */
+DEX_EXPORT
 void dexZipCloseArchive(ZipArchive* pArchive)
 {
     LOGV("Closing archive %p\n", pArchive);
@@ -411,6 +413,7 @@ void dexZipCloseArchive(ZipArchive* pArchive)
  *
  * Returns 0 if not found.
  */
+DEX_EXPORT
 ZipEntry dexZipFindEntry(const ZipArchive* pArchive, const char* entryName)
 {
     int nameLen = strlen(entryName);
@@ -465,6 +468,7 @@ ZipEntry findEntryByIndex(ZipArchive* pArchive, int idx)
  * Returns non-zero if the contents of the fields (particularly the data
  * offset) appear to be bogus.
  */
+DEX_EXPORT
 int dexZipGetEntryInfo(const ZipArchive* pArchive, ZipEntry entry,
     int* pMethod, size_t* pUncompLen, size_t* pCompLen, off_t* pOffset,
     long* pModWhen, long* pCrc32)
@@ -708,6 +712,7 @@ static int copyFileToFile(int inFd, int outFd, size_t uncompLen)
  * TODO: this doesn't verify the data's CRC, but probably should (especially
  * for uncompressed data).
  */
+DEX_EXPORT
 int dexZipExtractEntryToFile(const ZipArchive* pArchive,
     const ZipEntry entry, int fd)
 {
