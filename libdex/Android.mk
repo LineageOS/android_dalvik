@@ -28,7 +28,6 @@ dex_src_files := \
 	Leb128.c \
 	OpCodeNames.c \
 	OptInvocation.c \
-	sha1.c \
 	SysUtil.c \
 	ZipArchive.c
 
@@ -61,7 +60,7 @@ endif # !SDK_ONLY
 ##
 ##
 include $(CLEAR_VARS)
-LOCAL_SRC_FILES := $(dex_src_files)
+LOCAL_SRC_FILES := $(dex_src_files) sha1.c
 LOCAL_C_INCLUDES += $(dex_include_files)
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := libdex
