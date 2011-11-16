@@ -33,7 +33,11 @@
 # include <inttypes.h>      /* C99 */
 typedef uint8_t         jboolean;       /* unsigned 8 bits */
 typedef int8_t          jbyte;          /* signed 8 bits */
+#if __cplusplus >= 201103L || defined(__GXX_EXPERIMENTAL_CXX0X__)
+typedef char16_t	jchar;		/* unsigned 16 bits */
+#else
 typedef uint16_t        jchar;          /* unsigned 16 bits */
+#endif
 typedef int16_t         jshort;         /* signed 16 bits */
 typedef int32_t         jint;           /* signed 32 bits */
 typedef int64_t         jlong;          /* signed 64 bits */
