@@ -142,8 +142,8 @@ union CHAR64LONG16 {
 };
 CHAR64LONG16* block;
 #ifdef SHA1HANDSOFF
-static unsigned char workspace[64];
-    block = (CHAR64LONG16*)workspace;
+static CHAR64LONG16 workspace;
+    block = &workspace;
     memcpy(block, buffer, 64);
 #else
     block = (CHAR64LONG16*)buffer;
