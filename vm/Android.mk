@@ -39,6 +39,14 @@ else
 endif
 host_smp_flag := -DANDROID_SMP=1
 
+ifeq ($(ARCH_ARM_HAVE_ARMV7A),true)
+    target_inline_arg5_flag := -DINLINE_ARG_EXPANDED
+    host_inline_arg5_flag := -DINLINE_ARG_EXPANDED
+else
+    target_inline_arg5_flag :=
+    host_inline_arg5_flag :=
+endif
+
 # Build the installed version (libdvm.so) first
 WITH_JIT := true
 include $(LOCAL_PATH)/ReconfigureDvm.mk
@@ -58,9 +66,9 @@ ifneq ($(strip $(WITH_ADDRESS_SANITIZER)),)
     LOCAL_CFLAGS := $(filter-out $(CLANG_CONFIG_UNKNOWN_CFLAGS),$(LOCAL_CFLAGS))
 endif
 
+LOCAL_CFLAGS += $(target_inline_arg5_flag)
 # TODO: split out the asflags.
 LOCAL_ASFLAGS := $(LOCAL_CFLAGS)
-
 include $(BUILD_SHARED_LIBRARY)
 
 # Derivation #1
@@ -68,6 +76,7 @@ include $(BUILD_SHARED_LIBRARY)
 include $(LOCAL_PATH)/ReconfigureDvm.mk
 LOCAL_CFLAGS += -UNDEBUG -DDEBUG=1 -DLOG_NDEBUG=1 -DWITH_DALVIK_ASSERT \
                 -DWITH_JIT_TUNING $(target_smp_flag)
+LOCAL_CFLAGS += $(target_inline_arg5_flag)
 # TODO: split out the asflags.
 LOCAL_ASFLAGS := $(LOCAL_CFLAGS)
 LOCAL_MODULE := libdvm_assert
@@ -80,6 +89,7 @@ ifneq ($(dvm_arch),mips)    # MIPS support for self-verification is incomplete
     include $(LOCAL_PATH)/ReconfigureDvm.mk
     LOCAL_CFLAGS += -UNDEBUG -DDEBUG=1 -DLOG_NDEBUG=1 -DWITH_DALVIK_ASSERT \
                     -DWITH_SELF_VERIFICATION $(target_smp_flag)
+    LOCAL_CFLAGS += $(target_inline_arg5_flag)
     # TODO: split out the asflags.
     LOCAL_ASFLAGS := $(LOCAL_CFLAGS)
     LOCAL_MODULE := libdvm_sv
@@ -138,6 +148,7 @@ ifeq ($(WITH_HOST_DALVIK),true)
     endif
 
     LOCAL_CFLAGS += $(host_smp_flag)
+    LOCAL_CFLAGS += $(host_inline_arg5_flag)
     # TODO: split out the asflags.
     LOCAL_ASFLAGS := $(LOCAL_CFLAGS)
     ifeq ($(TARGET_ARCH_LOWMEM),true)

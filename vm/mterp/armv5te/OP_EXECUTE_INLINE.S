@@ -46,6 +46,36 @@
      *   interleave a little better.  Increases code size.
      */
 .L${opcode}_continue:
+
+#ifdef INLINE_ARG_EXPANDED
+    rsb     r0, r0, #5                  @ r0<- 4-r0
+    FETCH(rINST, 2)                     @ rINST<- FEDC
+    add     pc, pc, r0, lsl #3          @ computed goto, 2 instrs each
+    bl      common_abort                @ (skipped due to ARM prefetch)
+6:  b      .L${opcode}_load_arg4
+    bl      common_abort                @ (skipped due to ARM prefetch)
+4:  and     ip, rINST, #0xf000          @ isolate F
+    ldr     r3, [rFP, ip, lsr #10]      @ r3<- vF (shift right 12, left 2)
+3:  and     ip, rINST, #0x0f00          @ isolate E
+    ldr     r2, [rFP, ip, lsr #6]       @ r2<- vE
+2:  and     ip, rINST, #0x00f0          @ isolate D
+    ldr     r1, [rFP, ip, lsr #2]       @ r1<- vD
+1:  and     ip, rINST, #0x000f          @ isolate C
+    ldr     r0, [rFP, ip, lsl #2]       @ r0<- vC
+0:
+    ldr     rINST, .L${opcode}_table    @ table of InlineOperation
+5:  add     rINST, pc
+    ldr     pc, [rINST, r10, lsl #4]    @ sizeof=16, "func" is first entry
+    @ (not reached)
+
+.L${opcode}_load_arg4:
+    FETCH(r1, 0)                        @ r1<- original rINST
+    mov     r0, r1, lsr #8
+    and     ip, r0, #0x000f
+    ldr     r0, [rFP, ip, lsl #2]       @ r0<- vG
+    str     r0, [sp, #4]
+    b      4b
+#else
     rsb     r0, r0, #4                  @ r0<- 4-r0
     FETCH(rINST, 2)                     @ rINST<- FEDC
     add     pc, pc, r0, lsl #3          @ computed goto, 2 instrs each
@@ -63,6 +93,7 @@
 5:  add     rINST, pc
     ldr     pc, [rINST, r10, lsl #4]    @ sizeof=16, "func" is first entry
     @ (not reached)
+#endif
 
     /*
      * We're debugging or profiling.

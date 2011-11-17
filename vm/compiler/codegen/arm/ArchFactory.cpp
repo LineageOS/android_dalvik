@@ -61,7 +61,7 @@ static TGT_LIR *genNullCheck(CompilationUnit *cUnit, int sReg, int mReg,
     if (dvmIsBitSet(cUnit->regPool->nullCheckedRegs, sReg)) {
         return pcrLabel;
     }
-    dvmSetBit(cUnit->regPool->nullCheckedRegs, sReg);
+    dvmCompilerSetBit(cUnit->regPool->nullCheckedRegs, sReg);
     return genRegImmCheck(cUnit, kArmCondEq, mReg, 0, dOffset, pcrLabel);
 }
 

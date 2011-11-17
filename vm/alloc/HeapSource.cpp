@@ -438,6 +438,13 @@ static bool addNewHeap(HeapSource *hs)
         heap.brk = heap.base + morecoreStart;
         heap.msp = createMspace(base, morecoreStart, hs->minFree);
     }
+    size_t morecoreStart = MAX(SYSTEM_PAGE_SIZE, gDvm.heapStartingSize);
+    heap.maximumSize = hs->growthLimit - overhead;
+    heap.concurrentStartBytes = hs->minFree - concurrentStart;
+    heap.base = base;
+    heap.limit = heap.base + heap.maximumSize;
+    heap.brk = heap.base + morecoreStart;
+    heap.msp = createMspace(base, morecoreStart, hs->minFree);
     if (heap.msp == NULL) {
         return false;
     }
@@ -682,6 +689,14 @@ bool dvmHeapSourceStartupAfterZygote()
         hs->heaps[0].concurrentStartBytes = mspace_footprint(hs->heaps[0].msp) - concurrentStart;
         return gDvm.concurrentMarkSweep ? gcDaemonStartup() : true;
     }
+    //For each new application forked, we need to reset softLimit and
+    //concurrentStartBytes to be the correct expected value, not the one
+    //inherit from Zygote
+    HeapSource* hs   = gHs;
+
+    hs->softLimit=SIZE_MAX;
+    hs->heaps[0].concurrentStartBytes = mspace_footprint(hs->heaps[0].msp) - concurrentStart;
+    return gDvm.concurrentMarkSweep ? gcDaemonStartup() : true;
 }
 
 /*

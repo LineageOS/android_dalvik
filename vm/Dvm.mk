@@ -235,6 +235,7 @@ ifeq ($(dvm_arch),arm)
   #LOCAL_CFLAGS += -march=armv7-a -mfloat-abi=softfp -mfpu=vfp
   LOCAL_CFLAGS += -Werror
   MTERP_ARCH_KNOWN := true
+
   # Select architecture-specific sources (armv5te, armv7-a, etc.)
   LOCAL_SRC_FILES += \
 		arch/arm/CallOldABI.S \
@@ -244,6 +245,9 @@ ifeq ($(dvm_arch),arm)
 		mterp/out/InterpAsm-$(dvm_arch_variant).S
 
   ifeq ($(WITH_JIT),true)
+    # Debuggerd support
+    LOCAL_SRC_FILES += DalvikCrashDump.cpp
+
     LOCAL_SRC_FILES += \
 		compiler/codegen/RallocUtil.cpp \
 		compiler/codegen/arm/$(dvm_arch_variant)/Codegen.cpp \
@@ -254,6 +258,11 @@ ifeq ($(dvm_arch),arm)
 		compiler/codegen/arm/GlobalOptimizations.cpp \
 		compiler/codegen/arm/ArmRallocUtil.cpp \
 		compiler/template/out/CompilerTemplateAsm-$(dvm_arch_variant).S
+  endif
+
+  ifeq ($(BOARD_USES_QCOM_HARDWARE),true)
+    LOCAL_WHOLE_STATIC_LIBRARIES += libqc-dalvik
+    LOCAL_SHARED_LIBRARIES += libqc-opt
   endif
 endif
 

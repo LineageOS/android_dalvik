@@ -123,7 +123,7 @@ static bool partialOverlap(int sreg1, int sreg2)
 
 static void genLong3Addr(CompilationUnit *cUnit, MIR *mir, OpKind firstOp,
                          OpKind secondOp, RegLocation rlDest,
-                         RegLocation rlSrc1, RegLocation rlSrc2)
+                         RegLocation rlSrc1, RegLocation rlSrc2, bool setCCode)
 {
     RegLocation rlResult;
     if (partialOverlap(rlSrc1.sRegLow,rlSrc2.sRegLow) ||
