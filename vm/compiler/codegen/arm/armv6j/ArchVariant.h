@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 The Android Open Source Project
+ * Copyright (C) 2009 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,21 @@
  * limitations under the License.
  */
 
-#if __ARM_ARCH_5TE__ || __ARM_ARCH_6__
-#define JIT_PROF_SIZE_LOG_2     9
-#else
-#define JIT_PROF_SIZE_LOG_2     11
-#endif
+#ifndef DALVIK_VM_COMPILER_CODEGEN_ARM_ARMV5TE_ARCHVARIANT_H_
+#define DALVIK_VM_COMPILER_CODEGEN_ARM_ARMV5TE_ARCHVARIANT_H_
 
-#define JIT_PROF_SIZE           (1 << JIT_PROF_SIZE_LOG_2)
+/* Create the TemplateOpcode enum */
+#define JIT_TEMPLATE(X) TEMPLATE_##X,
+enum TemplateOpcode {
+#include "../../../template/armv5te/TemplateOpList.h"
+/*
+ * For example,
+ *     TEMPLATE_CMP_LONG,
+ *     TEMPLATE_RETURN,
+ *     ...
+ */
+    TEMPLATE_LAST_MARK,
+};
+#undef JIT_TEMPLATE
+
+#endif  // DALVIK_VM_COMPILER_CODEGEN_ARM_ARMV5TE_ARCHVARIANT_H_

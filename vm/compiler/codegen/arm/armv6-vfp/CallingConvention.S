@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 The Android Open Source Project
+ * Copyright (C) 2009 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,21 @@
  * limitations under the License.
  */
 
-#if __ARM_ARCH_5TE__ || __ARM_ARCH_6__
-#define JIT_PROF_SIZE_LOG_2     9
-#else
-#define JIT_PROF_SIZE_LOG_2     11
-#endif
+/*
+ * Save & restore for callee-save FP registers.
+ * On entry:
+ *    r0 : pointer to save area of JIT_CALLEE_SAVE_WORD_SIZE
+ */
+    .text
+    .align 2
+    .global dvmJitCalleeSave
+    .type dvmJitCalleeSave, %function
+dvmJitCalleeSave:
+    vstmia r0, {d8-d15}
+    bx     lr
 
-#define JIT_PROF_SIZE           (1 << JIT_PROF_SIZE_LOG_2)
+    .global dvmJitCalleeRestore
+    .type dvmJitCalleeRestore, %function
+dvmJitCalleeRestore:
+    vldmia r0, {d8-d15}
+    bx     lr
