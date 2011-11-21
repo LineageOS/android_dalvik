@@ -1390,7 +1390,7 @@ static void genInterpSingleStep(CompilationUnit *cUnit, MIR *mir)
     opReg(cUnit, kOpBlx, r2);
 }
 
-#if defined(_ARMV5TE) || defined(_ARMV5TE_VFP)
+#if defined(_ARMV5TE) || defined(_ARMV5TE_VFP) || defined(_ARMV6J) || defined(_ARMV6_VFP)
 /*
  * To prevent a thread in a monitor wait from blocking the Jit from
  * resetting the code cache, heavyweight monitor lock will not
