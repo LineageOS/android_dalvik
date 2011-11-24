@@ -22,6 +22,7 @@
 #include "Misc.h"
 #include "ScopedPthreadMutexLock.h"
 #include "UniquePtr.h"
+#include "hprof/Hprof.h"
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -504,12 +505,40 @@ static jobject addGlobalReference(Object* obj) {
         int count = gDvm.jniGlobalRefTable.capacity();
         // TODO: adjust for "holes"
         if (count > gDvm.jniGlobalRefHiMark) {
-            ALOGD("GREF has increased to %d", count);
+            ALOGE("GREF has increased to %d, max is %d and min is %d\n", count, gDvm.jniGlobalRefHiMark, gDvm.jniGlobalRefLoMark);
             gDvm.jniGlobalRefHiMark += kGrefWaterInterval;
             gDvm.jniGlobalRefLoMark += kGrefWaterInterval;
 
+            if(count == 1701) {
+              dvmUnlockMutex(&gDvm.jniGlobalRefLock);
+              /* hprofDumpHeap creates the file in read-ony mode. So, next time
+                 when hprofDumpHeap is trying to update the same file it will not
+                 be able to open the file in WRITE mode. */
+              remove ("/data/hprof_dump_1701.hprof");
+              hprofDumpHeap("/data/hprof_dump_1701.hprof", -1, false);
+              dvmLockMutex(&gDvm.jniGlobalRefLock);
+            }
+            if(count == 1801) {
+              dvmUnlockMutex(&gDvm.jniGlobalRefLock);
+              remove ("/data/hprof_dump_1801.hprof");
+              hprofDumpHeap("/data/hprof_dump_1801.hprof", -1, false);
+              dvmLockMutex(&gDvm.jniGlobalRefLock);
+            }
+            if(count == 1901) {
+              dvmUnlockMutex(&gDvm.jniGlobalRefLock);
+              remove ("/data/hprof_dump_1901.hprof");
+              hprofDumpHeap("/data/hprof_dump_1901.hprof", -1, false);
+              dvmLockMutex(&gDvm.jniGlobalRefLock);
+            }
+
             /* watch for "excessive" use; not generally appropriate */
             if (count >= gDvm.jniGrefLimit) {
+
+                dvmUnlockMutex(&gDvm.jniGlobalRefLock);
+                remove ("/data/hprof_dump_final.hprof");
+                hprofDumpHeap("/data/hprof_dump_final.hprof", -1, false);
+                dvmLockMutex(&gDvm.jniGlobalRefLock);
+
                 if (gDvmJni.warnOnly) {
                     ALOGW("Excessive JNI global references (%d)", count);
                 } else {
