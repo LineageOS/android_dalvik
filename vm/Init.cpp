@@ -1374,6 +1374,13 @@ private:
 };
 
 /*
+ * Hook for post-init functions
+ */
+__attribute__((weak)) void dvmPostInitZygote(void) {
+    ;
+}
+
+/*
  * VM initialization.  Pass in any options provided on the command line.
  * Do not pass in the class name or the options for the class.
  *
@@ -1572,6 +1579,7 @@ std::string dvmStartup(int argc, const char* const argv[],
         if (!initZygote()) {
             return "initZygote failed";
         }
+        dvmPostInitZygote();
     } else {
         if (!dvmInitAfterZygote()) {
             return "dvmInitAfterZygote failed";

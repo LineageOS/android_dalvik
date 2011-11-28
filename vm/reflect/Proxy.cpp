@@ -216,6 +216,9 @@ bail:
             /* throw something */
             dvmThrowRuntimeException(NULL);
         }
+    } else {
+        // Add barrier to force all metadata writes to main memory to complete
+        ANDROID_MEMBAR_FULL();
     }
 
     /* allow the GC to free these when nothing else has a reference */

@@ -14,6 +14,15 @@
 
 LOCAL_PATH:= $(call my-dir)
 
+ifeq ($(ARCH_ARM_HAVE_ARMV7A),true)
+    target_inline_arg5_flag := -DINLINE_ARG_EXPANDED
+    host_inline_arg5_flag := -DINLINE_ARG_EXPANDED
+else
+    target_inline_arg5_flag :=
+    host_inline_arg5_flag :=
+endif
+
+
 dex_src_files := \
 	CmdUtils.cpp \
 	DexCatch.cpp \
@@ -53,6 +62,7 @@ LOCAL_C_INCLUDES += $(dex_include_files)
 LOCAL_STATIC_LIBRARIES := liblog
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := libdex
+LOCAL_CFLAGS += $(target_inline_arg5_flag)
 include $(BUILD_STATIC_LIBRARY)
 
 endif # !SDK_ONLY
@@ -69,4 +79,5 @@ LOCAL_C_INCLUDES += $(dex_include_files)
 LOCAL_STATIC_LIBRARIES := liblog
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE := libdex
+LOCAL_CFLAGS += $(host_inline_arg5_flag)
 include $(BUILD_HOST_STATIC_LIBRARY)
