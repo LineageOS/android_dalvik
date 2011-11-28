@@ -123,7 +123,7 @@ static bool partialOverlap(int sreg1, int sreg2)
 
 static void genLong3Addr(CompilationUnit *cUnit, MIR *mir, OpKind firstOp,
                          OpKind secondOp, RegLocation rlDest,
-                         RegLocation rlSrc1, RegLocation rlSrc2)
+                         RegLocation rlSrc1, RegLocation rlSrc2, bool setCCode)
 {
     RegLocation rlResult;
     if (partialOverlap(rlSrc1.sRegLow,rlSrc2.sRegLow) ||
@@ -283,6 +283,7 @@ static void genMultiplyByShiftAndReverseSubtract(CompilationUnit *cUnit,
     opRegRegReg(cUnit, kOpSub, rlResult.lowReg, tReg, rlSrc.lowReg);
 }
 
+#ifndef WITH_QC_PERF
 /*
  * Generate array load
  */
@@ -423,3 +424,4 @@ static void genArrayPut(CompilationUnit *cUnit, MIR *mir, OpSize size,
         HEAP_ACCESS_SHADOW(false);
     }
 }
+#endif

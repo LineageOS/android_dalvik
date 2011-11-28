@@ -356,7 +356,7 @@ static u1 gInstructionFormatTable[kNumPackedOpcodes] = {
     kFmt22b,  kFmt22b,  kFmt22b,  kFmt22b,  kFmt22b,  kFmt22b,  kFmt22b,
     kFmt22b,  kFmt22b,  kFmt22b,  kFmt22c,  kFmt22c,  kFmt21c,  kFmt21c,
     kFmt22c,  kFmt22c,  kFmt22c,  kFmt21c,  kFmt21c,  kFmt00x,  kFmt20bc,
-    kFmt35mi, kFmt3rmi, kFmt35c,  kFmt10x,  kFmt22cs, kFmt22cs, kFmt22cs,
+    kFmt35mi, kFmt3rmi, kFmt3rc,  kFmt10x,  kFmt22cs, kFmt22cs, kFmt22cs,
     kFmt22cs, kFmt22cs, kFmt22cs, kFmt35ms, kFmt3rms, kFmt35ms, kFmt3rms,
     kFmt22c,  kFmt21c,  kFmt21c,  kFmt00x,
     // END(libdex-formats)
@@ -608,11 +608,13 @@ void dexDecodeInstruction(const u2* insns, DecodedInstruction* pDec)
              */
             switch (count) {
             case 5: {
+#ifndef INLINE_ARG_EXPANDED
                 if (format == kFmt35mi) {
                     /* A fifth arg is verboten for inline invokes. */
                     ALOGW("Invalid arg count in 35mi (5)");
                     goto bail;
                 }
+#endif
                 /*
                  * Per note at the top of this format decoder, the
                  * fifth argument comes from the A field in the

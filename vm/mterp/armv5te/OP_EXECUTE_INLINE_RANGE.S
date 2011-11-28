@@ -19,11 +19,11 @@
     bne     .L${opcode}_debugmode       @ yes - take slow path
 .L${opcode}_resume:
     add     r1, rSELF, #offThread_retval  @ r1<- &self->retval
-    sub     sp, sp, #8                  @ make room for arg, +64 bit align
+    sub     sp, sp, #16                  @ make room for arg, +64 bit align
     mov     r0, rINST, lsr #8           @ r0<- AA
     str     r1, [sp]                    @ push &self->retval
     bl      .L${opcode}_continue        @ make call; will return after
-    add     sp, sp, #8                  @ pop stack
+    add     sp, sp, #16                  @ pop stack
     cmp     r0, #0                      @ test boolean result of inline
     beq     common_exceptionThrown      @ returned false, handle exception
     FETCH_ADVANCE_INST(3)               @ advance rPC, load rINST
@@ -38,6 +38,50 @@
      *  lr = return addr, above  [DO NOT bl out of here w/o preserving LR]
      */
 .L${opcode}_continue:
+#ifdef INLINE_ARG_EXPANDED
+    rsb     r0, r0, #7                  @ r0<- 4-r0
+    FETCH(r9, 2)                        @ r9<- CCCC
+    add     pc, pc, r0, lsl #3          @ computed goto, 2 instrs each
+    bl      common_abort                @ (skipped due to ARM prefetch)
+8:  b      .L${opcode}_load_arg6
+    bl      common_abort                @ (skipped due to ARM prefetch)
+7:  b      .L${opcode}_load_arg5
+    bl      common_abort                @ (skipped due to ARM prefetch)
+6:  b      .L${opcode}_load_arg4
+    bl      common_abort                @ (skipped due to ARM prefetch)
+4:  add     ip, r9, #3                  @ base+3
+    GET_VREG(r3, ip)                    @ r3<- vBase[3]
+3:  add     ip, r9, #2                  @ base+2
+    GET_VREG(r2, ip)                    @ r2<- vBase[2]
+2:  add     ip, r9, #1                  @ base+1
+    GET_VREG(r1, ip)                    @ r1<- vBase[1]
+1:  add     ip, r9, #0                  @ (nop)
+    GET_VREG(r0, ip)                    @ r0<- vBase[0]
+0:
+    ldr     r9, .L${opcode}_table       @ table of InlineOperation
+5:  add     r9, pc
+    ldr     pc, [r9, r10, lsl #4]       @ sizeof=16, "func" is first entry
+    @ (not reached)
+
+.L${opcode}_load_arg6:
+    add     ip, r9, #6                  @ base+3
+    GET_VREG(r3, ip)                    @ r3<- vBase[3]
+    str     r3, [sp, #12]
+    b      7b
+
+.L${opcode}_load_arg5:
+    add     ip, r9, #5                  @ base+3
+    GET_VREG(r3, ip)                    @ r3<- vBase[3]
+    str     r3, [sp, #8]
+    b      6b
+
+.L${opcode}_load_arg4:
+    add     ip, r9, #4                  @ base+3
+    GET_VREG(r3, ip)                    @ r3<- vBase[3]
+    str     r3, [sp, #4]
+    b      4b
+
+#else
     rsb     r0, r0, #4                  @ r0<- 4-r0
     FETCH(r9, 2)                        @ r9<- CCCC
     add     pc, pc, r0, lsl #3          @ computed goto, 2 instrs each
@@ -55,7 +99,7 @@
 5:  add     r9, pc
     ldr     pc, [r9, r10, lsl #4]       @ sizeof=16, "func" is first entry
     @ (not reached)
-
+#endif
 
     /*
      * We're debugging or profiling.

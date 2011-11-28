@@ -33,6 +33,12 @@ Method* dvmFindInlinableMethod(const char* classDescriptor,
 typedef bool (*InlineOp4Func)(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
     JValue* pResult);
 
+#ifdef INLINE_ARG_EXPANDED
+typedef bool (*InlineOp5Func)(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
+    JValue* pResult, u4 arg4);
+typedef bool (*InlineOp7Func)(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
+    JValue* pResult, u4 arg4, u4 arg5, u4 arg6);
+#endif
 /*
  * Table of inline operations.
  *
@@ -117,12 +123,45 @@ INLINE bool dvmPerformInlineOp4Std(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
     return (*gDvmInlineOpsTable[opIndex].func)(arg0, arg1, arg2, arg3, pResult);
 }
 
+#ifdef INLINE_ARG_EXPANDED
+/*
+ * Perform the operation specified by "opIndex".
+ *
+ * We want the arguments to appear in the first 4 registers so they can
+ * be passed straight through to the handler function.  Ideally on ARM
+ * they'll go into r0-r3 and stay there.
+ *
+ * Returns "true" if everything went normally, "false" if an exception
+ * was thrown.
+ */
+INLINE bool dvmPerformInlineOp5Std(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
+    JValue* pResult, int opIndex, u4 arg4)
+{
+    return ((InlineOp5Func)(*gDvmInlineOpsTable[opIndex].func))(arg0, arg1, arg2, arg3, pResult, arg4);
+}
+
+INLINE bool dvmPerformInlineOp7Std(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
+    JValue* pResult, int opIndex, u4 arg4, u4 arg5, u4 arg6)
+{
+    return ((InlineOp7Func)(*gDvmInlineOpsTable[opIndex].func))(arg0, arg1, arg2, arg3, pResult, arg4, arg5, arg6);
+}
+
+#endif
 /*
  * Like the "std" version, but will emit profiling info.
  */
 bool dvmPerformInlineOp4Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
     JValue* pResult, int opIndex);
 
+#ifdef INLINE_ARG_EXPANDED
+/*
+ * Like the "std" version, but will emit profiling info.
+ */
+bool dvmPerformInlineOp5Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
+    JValue* pResult, int opIndex, u4 arg4);
+bool dvmPerformInlineOp7Dbg(u4 arg0, u4 arg1, u4 arg2, u4 arg3,
+    JValue* pResult, int opIndex, u4 arg4, u4 arg5, u4 arg6);
+#endif
 /*
  * Return method & populate the table on first use.
  */

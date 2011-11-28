@@ -1,5 +1,59 @@
 HANDLE_OPCODE(OP_EXECUTE_INLINE /*vB, {vD, vE, vF, vG}, inline@CCCC*/)
     {
+#ifdef INLINE_ARG_EXPANDED
+        u4 arg0, arg1, arg2, arg3, arg4;
+        arg0 = arg1 = arg2 = arg3 = arg4 = 0;
+
+        EXPORT_PC();
+
+        vsrc1 = INST_B(inst);       /* #of args */
+        ref = FETCH(1);             /* inline call "ref" */
+        vdst = FETCH(2);            /* 0-4 register indices */
+        ILOGV("|execute-inline args=%d @%d {regs=0x%04x}",
+            vsrc1, ref, vdst);
+
+        assert((vdst >> 16) == 0);  // 16-bit type -or- high 16 bits clear
+        assert(vsrc1 <= 5);
+
+        switch (vsrc1) {
+        case 5:
+            arg4 = GET_REGISTER(INST_A(inst));
+            /* fall through */
+        case 4:
+            arg3 = GET_REGISTER(vdst >> 12);
+            /* fall through */
+        case 3:
+            arg2 = GET_REGISTER((vdst & 0x0f00) >> 8);
+            /* fall through */
+        case 2:
+            arg1 = GET_REGISTER((vdst & 0x00f0) >> 4);
+            /* fall through */
+        case 1:
+            arg0 = GET_REGISTER(vdst & 0x0f);
+            /* fall through */
+        default:        // case 0
+            ;
+        }
+
+        if( vsrc1 == 5 ) {
+            if (self->interpBreak.ctl.subMode & kSubModeDebuggerActive) {
+                if (!dvmPerformInlineOp5Dbg(arg0, arg1, arg2, arg3, &retval, ref, arg4))
+                    GOTO_exceptionThrown();
+            } else {
+                if (!dvmPerformInlineOp5Std(arg0, arg1, arg2, arg3, &retval, ref, arg4))
+                    GOTO_exceptionThrown();
+            }
+        } else {
+            if (self->interpBreak.ctl.subMode & kSubModeDebuggerActive) {
+                if (!dvmPerformInlineOp4Dbg(arg0, arg1, arg2, arg3, &retval, ref))
+                    GOTO_exceptionThrown();
+            } else {
+                if (!dvmPerformInlineOp4Std(arg0, arg1, arg2, arg3, &retval, ref))
+                    GOTO_exceptionThrown();
+            }
+        }
+
+#else //ifdef INLINE_ARG_EXPANDED
         /*
          * This has the same form as other method calls, but we ignore
          * the 5th argument (vA).  This is chiefly because the first four
@@ -54,6 +108,7 @@ HANDLE_OPCODE(OP_EXECUTE_INLINE /*vB, {vD, vE, vF, vG}, inline@CCCC*/)
             if (!dvmPerformInlineOp4Std(arg0, arg1, arg2, arg3, &retval, ref))
                 GOTO_exceptionThrown();
         }
+#endif //ifdef INLINE_ARG_EXPANDED
     }
     FINISH(3);
 OP_END
