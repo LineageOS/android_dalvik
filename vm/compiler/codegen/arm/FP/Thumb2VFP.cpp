@@ -208,12 +208,21 @@ static bool genInlineSqrt(CompilationUnit *cUnit, MIR *mir)
     return false;
 }
 
+__attribute__((weak)) bool genCmpFPThumb2(CompilationUnit *cUnit, MIR *mir, RegLocation rlDest,
+                                    RegLocation rlSrc1, RegLocation rlSrc2)
+{
+    return true;
+}
+
 static bool genCmpFP(CompilationUnit *cUnit, MIR *mir, RegLocation rlDest,
                      RegLocation rlSrc1, RegLocation rlSrc2)
 {
     bool isDouble;
     int defaultResult;
     RegLocation rlResult;
+
+    if(!genCmpFPThumb2(cUnit, mir, rlDest, rlSrc1, rlSrc2))
+        return false;
 
     switch(mir->dalvikInsn.opcode) {
         case OP_CMPL_FLOAT:

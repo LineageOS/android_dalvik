@@ -325,6 +325,7 @@ enum Opcode {
     OP_SPUT_OBJECT_VOLATILE         = 0xfe,
     OP_UNUSED_FF                    = 0xff,
     // END(libdex-opcode-enum)
+    // Note: The end of this list must match dvmVerifyDex() in vm/compiler/Frontend.cpp
 };
 
 /*

@@ -22,6 +22,9 @@
  *
  */
 
+#define SET_CCODE   (cUnit->setCCode = true)      /* codegen changes CCode */
+#define UNSET_CCODE (cUnit->setCCode = false)     /* codegen does not change CCode */
+
 static int coreTemps[] = {r0, r1, r2, r3, r4PC, r7, r8, r9, r10, r11, r12};
 static int fpTemps[] = {fr16, fr17, fr18, fr19, fr20, fr21, fr22, fr23,
                         fr24, fr25, fr26, fr27, fr28, fr29, fr30, fr31};
@@ -150,10 +153,6 @@ static ArmLIR *loadConstantNoClobber(CompilationUnit *cUnit, int rDest,
         return loadFPConstantValue(cUnit, rDest, value);
     }
 
-    /* See if the value can be constructed cheaply */
-    if (LOWREG(rDest) && (value >= 0) && (value <= 255)) {
-        return newLIR2(cUnit, kThumbMovImm, rDest, value);
-    }
     /* Check Modified immediate special cases */
     modImm = modifiedImmediate(value);
     if (modImm >= 0) {
@@ -303,9 +302,19 @@ static ArmLIR *opReg(CompilationUnit *cUnit, OpKind op, int rDestSrc)
     return newLIR1(cUnit, opcode, rDestSrc);
 }
 
+__attribute__((weak)) ArmLIR *opRegRegShiftThumb2(CompilationUnit *cUnit, OpKind op,
+                                            int rDestSrc1, int rSrc2, int shift)
+{
+    return NULL;
+}
+
 static ArmLIR *opRegRegShift(CompilationUnit *cUnit, OpKind op, int rDestSrc1,
                         int rSrc2, int shift)
 {
+    ArmLIR *res;
+    if((res = opRegRegShiftThumb2(cUnit, op, rDestSrc1, rSrc2, shift)))
+        return res;
+
     bool thumbForm = ((shift == 0) && LOWREG(rDestSrc1) && LOWREG(rSrc2));
     ArmOpcode opcode = kThumbBkpt;
     switch (op) {
@@ -353,7 +362,7 @@ static ArmLIR *opRegRegShift(CompilationUnit *cUnit, OpKind op, int rDestSrc1,
             opcode = (thumbForm) ? kThumbMul : kThumb2MulRRR;
             break;
         case kOpMvn:
-            opcode = (thumbForm) ? kThumbMvn : kThumb2MnvRR;
+            opcode = (thumbForm) ? kThumbMvn : kThumb2MvnRR;
             break;
         case kOpNeg:
             assert(shift == 0);
@@ -404,14 +413,14 @@ static ArmLIR *opRegRegShift(CompilationUnit *cUnit, OpKind op, int rDestSrc1,
             break;
     }
     assert(opcode >= 0);
-    if (EncodingMap[opcode].flags & IS_BINARY_OP)
+    if (getEncoding(opcode)->flags & IS_BINARY_OP)
         return newLIR2(cUnit, opcode, rDestSrc1, rSrc2);
-    else if (EncodingMap[opcode].flags & IS_TERTIARY_OP) {
-        if (EncodingMap[opcode].fieldLoc[2].kind == kFmtShift)
+    else if (getEncoding(opcode)->flags & IS_TERTIARY_OP) {
+        if (getEncoding(opcode)->fieldLoc[2].kind == kFmtShift)
             return newLIR3(cUnit, opcode, rDestSrc1, rSrc2, shift);
         else
             return newLIR3(cUnit, opcode, rDestSrc1, rDestSrc1, rSrc2);
-    } else if (EncodingMap[opcode].flags & IS_QUAD_OP)
+    } else if (getEncoding(opcode)->flags & IS_QUAD_OP)
         return newLIR4(cUnit, opcode, rDestSrc1, rDestSrc1, rSrc2, shift);
     else {
         assert(0);
@@ -425,9 +434,20 @@ static ArmLIR *opRegReg(CompilationUnit *cUnit, OpKind op, int rDestSrc1,
     return opRegRegShift(cUnit, op, rDestSrc1, rSrc2, 0);
 }
 
+__attribute__((weak)) ArmLIR *opRegRegRegShiftThumb2(CompilationUnit *cUnit, OpKind op,
+                                                int rDest, int rSrc1, int rSrc2, int shift)
+{
+    return NULL;
+}
+
 static ArmLIR *opRegRegRegShift(CompilationUnit *cUnit, OpKind op,
                                 int rDest, int rSrc1, int rSrc2, int shift)
 {
+    ArmLIR *res;
+
+    if((res = opRegRegRegShiftThumb2(cUnit, op, rDest, rSrc1, rSrc2, shift)))
+        return res;
+
     ArmOpcode opcode = kThumbBkpt;
     bool thumbForm = (shift == 0) && LOWREG(rDest) && LOWREG(rSrc1) &&
                       LOWREG(rSrc2);
@@ -481,10 +501,10 @@ static ArmLIR *opRegRegRegShift(CompilationUnit *cUnit, OpKind op,
             break;
     }
     assert(opcode >= 0);
-    if (EncodingMap[opcode].flags & IS_QUAD_OP)
+    if (getEncoding(opcode)->flags & IS_QUAD_OP)
         return newLIR4(cUnit, opcode, rDest, rSrc1, rSrc2, shift);
     else {
-        assert(EncodingMap[opcode].flags & IS_TERTIARY_OP);
+        assert(getEncoding(opcode)->flags & IS_TERTIARY_OP);
         return newLIR3(cUnit, opcode, rDest, rSrc1, rSrc2);
     }
 }
@@ -495,10 +515,20 @@ static ArmLIR *opRegRegReg(CompilationUnit *cUnit, OpKind op, int rDest,
     return opRegRegRegShift(cUnit, op, rDest, rSrc1, rSrc2, 0);
 }
 
+__attribute__((weak)) ArmLIR *opRegRegImmThumb2(CompilationUnit *cUnit, OpKind op, int rDest,
+                                                    int rSrc1, int value)
+{
+    return NULL;
+}
+
 static ArmLIR *opRegRegImm(CompilationUnit *cUnit, OpKind op, int rDest,
                            int rSrc1, int value)
 {
     ArmLIR *res;
+
+    if((res = opRegRegImmThumb2(cUnit, op, rDest, rSrc1, value)))
+        return res;
+
     bool neg = (value < 0);
     int absValue = (neg) ? -value : value;
     ArmOpcode opcode = kThumbBkpt;
@@ -608,7 +638,7 @@ static ArmLIR *opRegRegImm(CompilationUnit *cUnit, OpKind op, int rDest,
     } else {
         int rScratch = dvmCompilerAllocTemp(cUnit);
         loadConstant(cUnit, rScratch, value);
-        if (EncodingMap[altOpcode].flags & IS_QUAD_OP)
+        if (getEncoding(altOpcode)->flags & IS_QUAD_OP)
             res = newLIR4(cUnit, altOpcode, rDest, rSrc1, rScratch, 0);
         else
             res = newLIR3(cUnit, altOpcode, rDest, rSrc1, rScratch);
@@ -617,10 +647,21 @@ static ArmLIR *opRegRegImm(CompilationUnit *cUnit, OpKind op, int rDest,
     }
 }
 
+__attribute__((weak)) ArmLIR *opRegImmThumb2(CompilationUnit *cUnit, OpKind op, int rDestSrc1,
+                                            int value)
+{
+    return NULL;
+}
+
 /* Handle Thumb-only variants here - otherwise punt to opRegRegImm */
 static ArmLIR *opRegImm(CompilationUnit *cUnit, OpKind op, int rDestSrc1,
                         int value)
 {
+    ArmLIR *res;
+
+    if((res = opRegImmThumb2(cUnit, op, rDestSrc1, value)))
+        return res;
+
     bool neg = (value < 0);
     int absValue = (neg) ? -value : value;
     bool shortForm = (((absValue & 0xff) == absValue) && LOWREG(rDestSrc1));
@@ -1153,20 +1194,24 @@ static void storePair(CompilationUnit *cUnit, int base, int lowReg, int highReg)
     storeBaseDispWide(cUnit, base, 0, lowReg, highReg);
 }
 
+#ifndef WITH_QC_PERF
 static void storePair(CompilationUnit *cUnit, int base, int displacement, int lowReg, int highReg)
 {
     storeBaseDispWide(cUnit, base, displacement, lowReg, highReg);
 }
+#endif
 
 static void loadPair(CompilationUnit *cUnit, int base, int lowReg, int highReg)
 {
     loadBaseDispWide(cUnit, NULL, base, 0, lowReg, highReg, INVALID_SREG);
 }
 
+#ifndef WITH_QC_PERF
 static void loadPair(CompilationUnit *cUnit, int base, int displacement, int lowReg, int highReg)
 {
     loadBaseDispWide(cUnit, NULL, base, displacement, lowReg, highReg, INVALID_SREG);
 }
+#endif
 
 /*
  * Generate a register comparison to an immediate and branch.  Caller
@@ -1233,7 +1278,7 @@ static ArmLIR* genRegCopyNoInsert(CompilationUnit *cUnit, int rDest, int rSrc)
         return fpRegCopy(cUnit, rDest, rSrc);
     res = (ArmLIR *) dvmCompilerNew(sizeof(ArmLIR), true);
     if (LOWREG(rDest) && LOWREG(rSrc))
-        opcode = kThumbMovRR;
+        opcode = kThumb2MovRR;
     else if (!LOWREG(rDest) && !LOWREG(rSrc))
          opcode = kThumbMovRR_H2H;
     else if (LOWREG(rDest))

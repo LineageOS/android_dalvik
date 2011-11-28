@@ -153,7 +153,7 @@ static void checkForDominanceFrontier(BasicBlock *domBB,
     if (succBB->iDom != domBB &&
         succBB->blockType == kDalvikByteCode &&
         succBB->hidden == false) {
-        dvmSetBit(domBB->domFrontier, succBB->id);
+        dvmCompilerSetBit(domBB->domFrontier, succBB->id);
     }
 }
 
@@ -253,7 +253,7 @@ static bool computeBlockDominators(CompilationUnit *cUnit, BasicBlock *bb)
         /* tempBlockV = tempBlockV ^ dominators */
         dvmIntersectBitVectors(tempBlockV, tempBlockV, predBB->dominators);
     }
-    dvmSetBit(tempBlockV, bb->id);
+    dvmCompilerSetBit(tempBlockV, bb->id);
     if (dvmCompareBitVectors(tempBlockV, bb->dominators)) {
         dvmCopyBitVector(bb->dominators, tempBlockV);
         return true;
@@ -317,7 +317,7 @@ static void computeDominators(CompilationUnit *cUnit)
 
     /* Set the dominator for the root node */
     dvmClearAllBits(cUnit->entryBlock->dominators);
-    dvmSetBit(cUnit->entryBlock->dominators, cUnit->entryBlock->id);
+    dvmCompilerSetBit(cUnit->entryBlock->dominators, cUnit->entryBlock->id);
 
     if (cUnit->tempBlockV == NULL) {
         cUnit->tempBlockV = dvmCompilerAllocBitVector(numTotalBlocks,
@@ -526,7 +526,7 @@ static bool insertPhiNodeOperands(CompilationUnit *cUnit, BasicBlock *bb)
             int encodedSSAValue =
                 predBB->dataFlowInfo->dalvikToSSAMap[dalvikReg];
             int ssaReg = DECODE_REG(encodedSSAValue);
-            dvmSetBit(ssaRegV, ssaReg);
+            dvmCompilerSetBit(ssaRegV, ssaReg);
         }
 
         /* Count the number of SSA registers for a Dalvik register */
@@ -589,6 +589,13 @@ void dvmCompilerMethodSSATransformation(CompilationUnit *cUnit)
                                           false /* isIterative */);
 }
 
+/* brief report of DFS order of trace blocks */
+__attribute__((weak)) void dumpDFSOrder(CompilationUnit *cUnit)
+{
+    ALOGV("DFS order complete");
+    return;
+}
+
 /* Build a loop. Return true if a loop structure is successfully identified. */
 bool dvmCompilerBuildLoop(CompilationUnit *cUnit)
 {
@@ -604,6 +611,8 @@ bool dvmCompilerBuildLoop(CompilationUnit *cUnit)
 
     /* Re-compute the DFS order just for the loop */
     computeDFSOrder(cUnit);
+
+    dumpDFSOrder(cUnit);
 
     /* Re-compute the dominator info just for the loop */
     computeDominators(cUnit);

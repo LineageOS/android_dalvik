@@ -814,6 +814,22 @@ int dvmConvertSSARegToDalvik(const CompilationUnit *cUnit, int ssaReg)
 }
 
 /*
+ * Utility function to populate attributes based on the DEX opcode
+ */
+__attribute__((weak)) int dvmGetDexOptAttributes(const DecodedInstruction* instr)
+{
+    int result = 0;
+    if (instr) {
+        Opcode  opcode = instr->opcode;
+        if ((opcode >= OP_NOP) && (opcode < (Opcode)kMirOpLast)) {
+            result = dvmCompilerDataFlowAttributes[opcode];
+        }
+    }
+
+    return result;
+}
+
+/*
  * Utility function to convert encoded SSA register value into Dalvik register
  * and subscript pair. Each SSA register can be used to index the
  * ssaToDalvikMap list to get the subscript[31..16]/dalvik_reg[15..0] mapping.
@@ -823,9 +839,12 @@ char *dvmCompilerGetDalvikDisassembly(const DecodedInstruction *insn,
 {
     char buffer[256];
     Opcode opcode = insn->opcode;
-    int dfAttributes = dvmCompilerDataFlowAttributes[opcode];
+    int dfAttributes = 0;
     int flags;
     char *ret;
+    if (insn) {
+        dfAttributes = dvmGetDexOptAttributes(insn);
+    }
 
     buffer[0] = 0;
     if ((int)opcode >= (int)kMirOpFirst) {
@@ -925,11 +944,14 @@ char *dvmCompilerFullDisassembler(const CompilationUnit *cUnit,
     char operand0[256], operand1[256];
     const DecodedInstruction *insn = &mir->dalvikInsn;
     int opcode = insn->opcode;
-    int dfAttributes = dvmCompilerDataFlowAttributes[opcode];
+    int dfAttributes = 0;
     char *ret;
     int length;
     OpcodeFlags flags;
 
+    if (insn) {
+        dvmGetDexOptAttributes(insn);
+    }
     buffer[0] = 0;
     if (opcode >= kMirOpFirst) {
         if (opcode == kMirOpPhi) {
@@ -1121,7 +1143,7 @@ bool dvmCompilerFindLocalLiveIn(CompilationUnit *cUnit, BasicBlock *bb)
 
     for (mir = bb->firstMIRInsn; mir; mir = mir->next) {
         int dfAttributes =
-            dvmCompilerDataFlowAttributes[mir->dalvikInsn.opcode];
+            dvmGetDexOptAttributes(&mir->dalvikInsn);
         DecodedInstruction *dInsn = &mir->dalvikInsn;
 
         if (dfAttributes & DF_HAS_USES) {
@@ -1211,6 +1233,16 @@ static void dataFlowSSAFormat3RC(CompilationUnit *cUnit, MIR *mir)
     }
 }
 
+/* check for invoke instructions in the loop trace */
+__attribute__((weak)) void dvmCompilerCheckMIR(CompilationUnit *cUnit, MIR *mir)
+{
+    int flags = dexGetFlagsFromOpcode(mir->dalvikInsn.opcode);
+
+    if (flags & kInstrInvoke) {
+        cUnit->hasInvoke = true;
+    }
+}
+
 /* Entry function to convert a block into SSA representation */
 bool dvmCompilerDoSSAConversion(CompilationUnit *cUnit, BasicBlock *bb)
 {
@@ -1219,11 +1251,14 @@ bool dvmCompilerDoSSAConversion(CompilationUnit *cUnit, BasicBlock *bb)
     if (bb->dataFlowInfo == NULL) return false;
 
     for (mir = bb->firstMIRInsn; mir; mir = mir->next) {
+
+        dvmCompilerCheckMIR(cUnit, mir);
+
         mir->ssaRep = (struct SSARepresentation *)
             dvmCompilerNew(sizeof(SSARepresentation), true);
 
         int dfAttributes =
-            dvmCompilerDataFlowAttributes[mir->dalvikInsn.opcode];
+            dvmGetDexOptAttributes(&mir->dalvikInsn);
 
         int numUses = 0;
 
@@ -1261,6 +1296,8 @@ bool dvmCompilerDoSSAConversion(CompilationUnit *cUnit, BasicBlock *bb)
                                                       false);
             mir->ssaRep->fpUse = (bool *)dvmCompilerNew(sizeof(bool) * numUses,
                                                 false);
+            mir->ssaRep->wideUse = (bool *)dvmCompilerNew(sizeof(bool) * numUses,
+                                                false);
         }
 
         int numDefs = 0;
@@ -1278,6 +1315,8 @@ bool dvmCompilerDoSSAConversion(CompilationUnit *cUnit, BasicBlock *bb)
                                                       false);
             mir->ssaRep->fpDef = (bool *)dvmCompilerNew(sizeof(bool) * numDefs,
                                                         false);
+            mir->ssaRep->wideDef = (bool *)dvmCompilerNew(sizeof(bool) * numDefs,
+                                                        false);
         }
 
         DecodedInstruction *dInsn = &mir->dalvikInsn;
@@ -1286,37 +1325,48 @@ bool dvmCompilerDoSSAConversion(CompilationUnit *cUnit, BasicBlock *bb)
             numUses = 0;
             if (dfAttributes & DF_UA) {
                 mir->ssaRep->fpUse[numUses] = dfAttributes & DF_FP_A;
+                mir->ssaRep->wideUse[numUses] = false;
                 handleSSAUse(cUnit, mir->ssaRep->uses, dInsn->vA, numUses++);
             } else if (dfAttributes & DF_UA_WIDE) {
                 mir->ssaRep->fpUse[numUses] = dfAttributes & DF_FP_A;
+                mir->ssaRep->wideUse[numUses] = true;
                 handleSSAUse(cUnit, mir->ssaRep->uses, dInsn->vA, numUses++);
                 mir->ssaRep->fpUse[numUses] = dfAttributes & DF_FP_A;
+                mir->ssaRep->wideUse[numUses] = true;
                 handleSSAUse(cUnit, mir->ssaRep->uses, dInsn->vA+1, numUses++);
             }
             if (dfAttributes & DF_UB) {
                 mir->ssaRep->fpUse[numUses] = dfAttributes & DF_FP_B;
+                mir->ssaRep->wideUse[numUses] = false;
                 handleSSAUse(cUnit, mir->ssaRep->uses, dInsn->vB, numUses++);
             } else if (dfAttributes & DF_UB_WIDE) {
                 mir->ssaRep->fpUse[numUses] = dfAttributes & DF_FP_B;
+                mir->ssaRep->wideUse[numUses] = true;
                 handleSSAUse(cUnit, mir->ssaRep->uses, dInsn->vB, numUses++);
                 mir->ssaRep->fpUse[numUses] = dfAttributes & DF_FP_B;
+                mir->ssaRep->wideUse[numUses] = true;
                 handleSSAUse(cUnit, mir->ssaRep->uses, dInsn->vB+1, numUses++);
             }
             if (dfAttributes & DF_UC) {
                 mir->ssaRep->fpUse[numUses] = dfAttributes & DF_FP_C;
+                mir->ssaRep->wideUse[numUses] = false;
                 handleSSAUse(cUnit, mir->ssaRep->uses, dInsn->vC, numUses++);
             } else if (dfAttributes & DF_UC_WIDE) {
                 mir->ssaRep->fpUse[numUses] = dfAttributes & DF_FP_C;
+                mir->ssaRep->wideUse[numUses] = true;
                 handleSSAUse(cUnit, mir->ssaRep->uses, dInsn->vC, numUses++);
                 mir->ssaRep->fpUse[numUses] = dfAttributes & DF_FP_C;
+                mir->ssaRep->wideUse[numUses] = true;
                 handleSSAUse(cUnit, mir->ssaRep->uses, dInsn->vC+1, numUses++);
             }
         }
         if (dfAttributes & DF_HAS_DEFS) {
             mir->ssaRep->fpDef[0] = dfAttributes & DF_FP_A;
+            mir->ssaRep->wideDef[0] = dfAttributes & DF_DA_WIDE;
             handleSSADef(cUnit, mir->ssaRep->defs, dInsn->vA, 0);
             if (dfAttributes & DF_DA_WIDE) {
                 mir->ssaRep->fpDef[1] = dfAttributes & DF_FP_A;
+                mir->ssaRep->wideDef[1] = true;
                 handleSSADef(cUnit, mir->ssaRep->defs, dInsn->vA+1, 1);
             }
         }
@@ -1339,7 +1389,7 @@ bool dvmCompilerDoSSAConversion(CompilationUnit *cUnit, BasicBlock *bb)
 /* Setup a constant value for opcodes thare have the DF_SETS_CONST attribute */
 static void setConstant(CompilationUnit *cUnit, int ssaReg, int value)
 {
-    dvmSetBit(cUnit->isConstantV, ssaReg);
+    dvmCompilerSetBit(cUnit->isConstantV, ssaReg);
     cUnit->constantValues[ssaReg] = value;
 }
 
@@ -1350,7 +1400,7 @@ bool dvmCompilerDoConstantPropagation(CompilationUnit *cUnit, BasicBlock *bb)
 
     for (mir = bb->firstMIRInsn; mir; mir = mir->next) {
         int dfAttributes =
-            dvmCompilerDataFlowAttributes[mir->dalvikInsn.opcode];
+            dvmGetDexOptAttributes(&mir->dalvikInsn);
 
         DecodedInstruction *dInsn = &mir->dalvikInsn;
 
@@ -1437,7 +1487,7 @@ bool dvmCompilerFindInductionVariables(struct CompilationUnit *cUnit,
     /* Find basic induction variable first */
     for (mir = bb->firstMIRInsn; mir; mir = mir->next) {
         int dfAttributes =
-            dvmCompilerDataFlowAttributes[mir->dalvikInsn.opcode];
+            dvmGetDexOptAttributes(&mir->dalvikInsn);
 
         if (!(dfAttributes & DF_IS_LINEAR)) continue;
 
@@ -1481,7 +1531,7 @@ bool dvmCompilerFindInductionVariables(struct CompilationUnit *cUnit,
                         break;
                 }
                 if (deltaIsConstant) {
-                    dvmSetBit(isIndVarV, mir->ssaRep->uses[0]);
+                    dvmCompilerSetBit(isIndVarV, mir->ssaRep->uses[0]);
                     InductionVariableInfo *ivInfo = (InductionVariableInfo *)
                         dvmCompilerNew(sizeof(InductionVariableInfo),
                                        false);
@@ -1502,7 +1552,7 @@ bool dvmCompilerFindInductionVariables(struct CompilationUnit *cUnit,
     /* Find dependent induction variable now */
     for (mir = bb->firstMIRInsn; mir; mir = mir->next) {
         int dfAttributes =
-            dvmCompilerDataFlowAttributes[mir->dalvikInsn.opcode];
+            dvmGetDexOptAttributes(&mir->dalvikInsn);
 
         if (!(dfAttributes & DF_IS_LINEAR)) continue;
 
@@ -1554,7 +1604,7 @@ bool dvmCompilerFindInductionVariables(struct CompilationUnit *cUnit,
 
             if (cIsConstant) {
                 unsigned int i;
-                dvmSetBit(isIndVarV, mir->ssaRep->defs[0]);
+                dvmCompilerSetBit(isIndVarV, mir->ssaRep->defs[0]);
                 InductionVariableInfo *ivInfo = (InductionVariableInfo *)
                     dvmCompilerNew(sizeof(InductionVariableInfo),
                                    false);
