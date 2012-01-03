@@ -56,6 +56,37 @@ static void Dalvik_dalvik_system_VMRuntime_nativeSetTargetHeapUtilization(
 }
 
 /*
+ * native void nativeSetTargetHeapIdealFree()
+ *
+ * Sets the current IDEAL_FREE, represented as a number
+ * for byte size.  Returns the old IDEAL_FREE.
+ *
+ * Note that this is NOT static.
+ */
+static void Dalvik_dalvik_system_VMRuntime_nativeSetTargetHeapIdealFree(
+    const u4* args, JValue* pResult)
+{
+    dvmSetTargetHeapIdealFree(args[1]);
+
+    RETURN_INT(dvmGetTargetHeapIdealFree());
+}
+
+/*
+ * native void nativeSetTargetHeapConcurrentStart()
+ *
+ * Sets the current concurrentStart, represented as a number
+ * for byte size.  Returns the old concurrentStart.
+ *
+ * Note that this is NOT static.
+ */
+static void Dalvik_dalvik_system_VMRuntime_nativeSetTargetHeapConcurrentStart(
+    const u4* args, JValue* pResult)
+{
+    dvmSetTargetHeapConcurrentStart(args[1]);
+
+    RETURN_INT(dvmGetTargetHeapConcurrentStart());
+}
+/*
  * public native void startJitCompilation()
  *
  * Callback function from the framework to indicate that an app has gone
@@ -217,6 +248,10 @@ const DalvikNativeMethod dvm_dalvik_system_VMRuntime[] = {
         Dalvik_dalvik_system_VMRuntime_getTargetHeapUtilization },
     { "nativeSetTargetHeapUtilization", "(F)V",
         Dalvik_dalvik_system_VMRuntime_nativeSetTargetHeapUtilization },
+    { "nativeSetTargetHeapIdealFree", "(I)I",
+        Dalvik_dalvik_system_VMRuntime_nativeSetTargetHeapIdealFree },
+    { "nativeSetTargetHeapConcurrentStart", "(I)I",
+        Dalvik_dalvik_system_VMRuntime_nativeSetTargetHeapConcurrentStart },
     { "newNonMovableArray", "(Ljava/lang/Class;I)Ljava/lang/Object;",
         Dalvik_dalvik_system_VMRuntime_newNonMovableArray },
     { "properties", "()[Ljava/lang/String;",
