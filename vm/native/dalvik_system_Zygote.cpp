@@ -23,6 +23,8 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
+#include <stdio.h>
 #include <grp.h>
 #include <errno.h>
 #include <paths.h>
@@ -358,6 +360,63 @@ static int setCapabilities(int64_t permitted, int64_t effective)
 }
 
 /*
+ * Basic KSM Support
+ */
+#ifndef MADV_MERGEABLE
+#define MADV_MERGEABLE 12
+#endif
+
+static inline void pushAnonymousPagesToKSM(void)
+{
+    FILE *fp;
+    char section[100];
+    char perms[5];
+    unsigned long start, end, misc;
+    int ch, offset;
+
+    fp = fopen("/proc/self/maps","r");
+
+    if (fp != NULL) {
+        while (fscanf(fp, "%lx-%lx %4s %lx %lx:%lx %ld",
+                 &start, &end, perms, &misc, &misc, &misc, &misc) == 7)
+        {
+            /* Read the sections name striping any preceeding spaces
+               and truncating to 100char (99 + \0)*/
+            section[0] = 0;
+            offset = 0;
+            while(1)
+            {
+                ch = fgetc(fp);
+                if (ch == '\n' || ch == EOF) {
+                    break;
+                }
+                if ((offset == 0) && (ch == ' ')) {
+                    continue;
+                }
+                if ((offset + 1) < 100) {
+                    section[offset]=ch;
+                    section[offset+1]=0;
+                    offset++;
+                }
+            }
+            /* now decide if we want to scan the section or not:
+               for now we scan Anonymous (sections with no file name) stack and
+               heap sections*/
+            if (( section[0] == 0) ||
+               (strcmp(section,"[stack]") == 0) ||
+               (strcmp(section,"[heap]") == 0))
+            {
+                /* The section matches pass it into madvise */
+                madvise((void*) start, (size_t) end-start, MADV_MERGEABLE);
+            }
+            if (ch == EOF) {
+                break;
+            }
+        }
+        fclose(fp);
+    }
+}
+/*
  * Utility routine to fork zygote and specialize the child process.
  */
 static pid_t forkAndSpecializeCommon(const u4* args, bool isSystemServer)
@@ -482,6 +541,7 @@ static pid_t forkAndSpecializeCommon(const u4* args, bool isSystemServer)
             ALOGE("error in post-zygote initialization");
             dvmAbort();
         }
+        pushAnonymousPagesToKSM();
     } else if (pid > 0) {
         /* the parent process */
     }
