@@ -19,6 +19,24 @@
     },
     {
       "key": {
+        "uuid": "AAAAPn//+5k\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 371,
+      "author": {
+        "id": 2567
+      },
+      "writtenOn": "2012-01-27T20:19:21Z",
+      "side": 1,
+      "message": "Agreed. This should be checked.",
+      "parentUuid": "AAAAPn//+6o\u003d",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "AAAAPn//+6c\u003d",
         "filename": "vm/native/dalvik_system_Zygote.c",
         "patchSetId": 1
@@ -36,6 +54,24 @@
     },
     {
       "key": {
+        "uuid": "AAAAPn//+5o\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 374,
+      "author": {
+        "id": 2567
+      },
+      "writtenOn": "2012-01-27T20:19:21Z",
+      "side": 1,
+      "message": "Shouldn\u0027t this rather be checked for not being \u003c 0?\nSince fscanf returns the amount of items scanned and gives negative if no match was found. Also, even if this would be 0 the while would not run. So checking the return value of fscanf should be obsolete, shouldn\u0027t it?",
+      "parentUuid": "AAAAPn//+6c\u003d",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "AAAAPn//+6I\u003d",
         "filename": "vm/native/dalvik_system_Zygote.c",
         "patchSetId": 1
@@ -47,6 +83,24 @@
       "writtenOn": "2012-01-27T19:11:50Z",
       "side": 1,
       "message": "This looks a bit weird to me. Isn\u0027t this expressable by fscanf as well? E.g.\n\n\"%lx-%lx %4s %lx %lx:%lx %ld %100s\"\n\nThe last string then just would need to be ltrim\u0027ed (p \u003d section; while (isspace(*p)) p++; ) Am I missing something there?",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "AAAAPn//+5U\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 392,
+      "author": {
+        "id": 2567
+      },
+      "writtenOn": "2012-01-27T20:19:21Z",
+      "side": 1,
+      "message": "fscanf would do that for all list entries, we just want the current one (that is read by line 373/4).\nThis should avoid unnecessary operations, hence increase speed, which is important at this point.\n\nCorrect me if I am wrong ;)",
+      "parentUuid": "AAAAPn//+6I\u003d",
       "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
