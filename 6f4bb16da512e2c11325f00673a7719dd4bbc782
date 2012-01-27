@@ -72,6 +72,24 @@
     },
     {
       "key": {
+        "uuid": "AAAAPn//+40\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 374,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2012-01-27T20:38:59Z",
+      "side": 1,
+      "message": "Well, if it would return 1, the loop would run with end and perms being invalid.\nUnlikely, I know, but I don\u0027t see a strong reason to not fully check it.",
+      "parentUuid": "AAAAPn//+5o\u003d",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "AAAAPn//+6I\u003d",
         "filename": "vm/native/dalvik_system_Zygote.c",
         "patchSetId": 1
@@ -101,6 +119,41 @@
       "side": 1,
       "message": "fscanf would do that for all list entries, we just want the current one (that is read by line 373/4).\nThis should avoid unnecessary operations, hence increase speed, which is important at this point.\n\nCorrect me if I am wrong ;)",
       "parentUuid": "AAAAPn//+6I\u003d",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "AAAAPn//+44\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 392,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2012-01-27T20:38:59Z",
+      "side": 1,
+      "message": "I meant replacing line 373/374 by an fscanf with the syntax I suggested, sorry for being unclear. In order to make it read the lines one-by-one, I guess a \\n was missing. So my suggestion basically is to replace line 373 by\n\nwhile(fscanf(fp,\"%lx-%lx %4s %lx %lx:%lx %ld %100s\\n\",\n                  \u0026start,\u0026end,perms,\u0026misc,\u0026misc,\u0026misc,\u0026misc, section) \u003d\u003d 8)",
+      "parentUuid": "AAAAPn//+5U\u003d",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "AAAAPn//+4w\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 407,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2012-01-27T20:38:59Z",
+      "side": 1,
+      "message": "Uh, where is the fclose()?",
       "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
