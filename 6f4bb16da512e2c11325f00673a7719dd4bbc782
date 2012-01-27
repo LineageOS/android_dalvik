@@ -90,6 +90,24 @@
     },
     {
       "key": {
+        "uuid": "AAAAPn//+4o\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 374,
+      "author": {
+        "id": 2567
+      },
+      "writtenOn": "2012-01-27T21:05:47Z",
+      "side": 1,
+      "message": "Not unlikely, impossible. At least heap and stack are always there, so another check would mean more code that does not need to be there and slows things down ;)\nIt either returns a negative value or \u003e\u003d2. nothing in between is possible how I see it at least.",
+      "parentUuid": "AAAAPn//+40\u003d",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "AAAAPn//+6I\u003d",
         "filename": "vm/native/dalvik_system_Zygote.c",
         "patchSetId": 1
@@ -143,6 +161,24 @@
     },
     {
       "key": {
+        "uuid": "AAAAPn//+4M\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 392,
+      "author": {
+        "id": 2567
+      },
+      "writtenOn": "2012-01-27T21:05:47Z",
+      "side": 1,
+      "message": "To be completely honest, I am not quite sure if this is such a good idea.\nI need to test this first.\nBut I think that this code should perform much faster than fscanf.",
+      "parentUuid": "AAAAPn//+44\u003d",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "AAAAPn//+4w\u003d",
         "filename": "vm/native/dalvik_system_Zygote.c",
         "patchSetId": 1
@@ -154,6 +190,24 @@
       "writtenOn": "2012-01-27T20:38:59Z",
       "side": 1,
       "message": "Uh, where is the fclose()?",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "AAAAPn//+4I\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 407,
+      "author": {
+        "id": 2567
+      },
+      "writtenOn": "2012-01-27T21:05:47Z",
+      "side": 1,
+      "message": "currently in miami, chilling a bit ^^\nThanks for finding ;)",
+      "parentUuid": "AAAAPn//+4w\u003d",
       "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
