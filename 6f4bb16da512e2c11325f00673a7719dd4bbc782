@@ -108,6 +108,41 @@
     },
     {
       "key": {
+        "uuid": "AAAAPn//+3Y\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 374,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2012-01-27T22:05:53Z",
+      "side": 1,
+      "message": "How would a !\u003d 0 check (which is currently there) be slower than a !\u003d 8 check?",
+      "parentUuid": "AAAAPn//+4o\u003d",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "AAAAPn//+3U\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 384,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2012-01-27T22:05:53Z",
+      "side": 1,
+      "message": "Also, can you please adhere to the coding style here and below (if keeping that code)?\n\nif (ch \u003d\u003d \u0027\\n\u0027 || ch \u003d\u003d EOF) {\n    break;\n}",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "AAAAPn//+6I\u003d",
         "filename": "vm/native/dalvik_system_Zygote.c",
         "patchSetId": 1
@@ -173,6 +208,24 @@
       "side": 1,
       "message": "To be completely honest, I am not quite sure if this is such a good idea.\nI need to test this first.\nBut I think that this code should perform much faster than fscanf.",
       "parentUuid": "AAAAPn//+44\u003d",
+      "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "AAAAPn//+3g\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 392,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2012-01-27T22:05:53Z",
+      "side": 1,
+      "message": "... at the expense of being much less readable. Are you sure that this code, which runs once per process startup, is _that_ performance critical? Premature optimization is the root of all evil ;)",
+      "parentUuid": "AAAAPn//+4M\u003d",
       "revId": "6f4bb16da512e2c11325f00673a7719dd4bbc782",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
