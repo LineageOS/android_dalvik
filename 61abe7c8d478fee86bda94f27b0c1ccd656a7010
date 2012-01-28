@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "AAAAPn//+tE\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.cpp",
+        "patchSetId": 2
+      },
+      "lineNbr": 390,
+      "author": {
+        "id": 431
+      },
+      "writtenOn": "2012-01-28T21:41:19Z",
+      "side": 1,
+      "message": "please fix whitespace (tabs) on lines 390, 393, 412, 414",
+      "revId": "61abe7c8d478fee86bda94f27b0c1ccd656a7010",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
