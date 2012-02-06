@@ -52,7 +52,7 @@ static void applyRedundantBranchElimination(CompilationUnit *cUnit)
                  * instruction.
                  */
                 if (!isPseudoOpcode(nextLIR->opcode) ||
-                    (nextLIR = (ArmLIR *) cUnit->lastLIRInsn))
+                    (nextLIR == (ArmLIR *) cUnit->lastLIRInsn))
                     break;
             }
         }
