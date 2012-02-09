@@ -2855,8 +2855,8 @@ static bool createVtable(ClassObject* clazz)
             for (si = 0; si < clazz->super->vtableCount; si++) {
                 Method* superMeth = clazz->vtable[si];
 
-                if (dvmCompareMethodNamesAndProtos(localMeth, superMeth) == 0)
-                {
+                if (dvmCompareMethodNamesAndProtos(localMeth, superMeth) == 0 &&
+                        dvmCheckMethodAccess(clazz, superMeth)) {
                     /* verify */
                     if (dvmIsFinalMethod(superMeth)) {
                         LOGW("Method %s.%s overrides final %s.%s\n",
