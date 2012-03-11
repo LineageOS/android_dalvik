@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "AAAARH///iI\u003d",
+        "filename": "vm/analysis/DexPrepare.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 347,
+      "author": {
+        "id": 1579
+      },
+      "writtenOn": "2012-03-11T01:43:27Z",
+      "side": 1,
+      "message": "How about separate these to create function \u0027mkExecFile\u0027 or something like that?",
+      "revId": "8a8d7594704dd21712b689dfee8c7139ea69efac",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
