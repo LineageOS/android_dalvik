@@ -927,7 +927,7 @@ bool dvmJdwpPostThreadChange(JdwpState* state, ObjectId threadId, bool start)
     JdwpEvent** matchList;
     int matchCount;
 
-    assert(threadId = dvmDbgGetThreadSelfId());
+    assert(threadId == dvmDbgGetThreadSelfId());
 
     /*
      * I don't think this can happen.
