@@ -28,6 +28,7 @@
 #include <grp.h>
 #include <errno.h>
 #include <paths.h>
+#include <sys/personality.h>
 
 #if defined(HAVE_PRCTL)
 # include <sys/prctl.h>
@@ -503,6 +504,12 @@ static pid_t forkAndSpecializeCommon(const u4* args, bool isSystemServer)
         if (err < 0) {
             LOGE("cannot setuid(%d): %s", uid, strerror(errno));
             dvmAbort();
+        }
+
+        int current = personality(0xffffFFFF);
+        int success = personality((ADDR_NO_RANDOMIZE | current));
+        if (success == -1) {
+          LOGW("Personality switch failed. current=%d error=%d\n", current, errno);
         }
 
         err = setCapabilities(permittedCapabilities, effectiveCapabilities);
