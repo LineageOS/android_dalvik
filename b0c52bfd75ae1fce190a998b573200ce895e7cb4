@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "AAAATH//+g8\u003d",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 2
+      },
+      "lineNbr": 2,
+      "author": {
+        "id": 171
+      },
+      "writtenOn": "2012-05-26T23:17:29Z",
+      "side": 1,
+      "message": "Now given some of the original braindead errors in the code maybe showp1984 can take the credit but I\u0027m quite sure I wrote the patch:\nhttps://github.com/ezterry/GB-platform_dalvik/commit/95f076d645dae6e0697ed731e7a2026fdd3f5698",
+      "revId": "b0c52bfd75ae1fce190a998b573200ce895e7cb4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "AAAATH//+g4\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 360,
+      "author": {
+        "id": 171
+      },
+      "writtenOn": "2012-05-26T23:17:29Z",
+      "side": 1,
+      "message": "This ought to be in bionic as linux constants\noriginal related commit:\nhttps://github.com/ezterry/GB-Bionic/commit/f20be1bf776f6eb466a67724e120b8e4818a6cfb",
+      "revId": "b0c52bfd75ae1fce190a998b573200ce895e7cb4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "AAAATH//+gs\u003d",
+        "filename": "vm/native/dalvik_system_Zygote.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 526,
+      "author": {
+        "id": 171
+      },
+      "writtenOn": "2012-05-26T23:17:29Z",
+      "side": 1,
+      "message": "As the benefits of this patch are very mixed (and seem to behave poorly with swap (including zram), since the extra ram of zygote swaps out leaving this unnecessary) it may be wise to have a config variable control (#ifdef) the inclusion of the KSM push.",
+      "revId": "b0c52bfd75ae1fce190a998b573200ce895e7cb4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
