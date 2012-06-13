@@ -1,0 +1,8 @@
+Change-Id: I392babc7e8c16d21e38d9661b087dab2d869baa6
+Code-Review+2: Steve Kondik <shade@chemlab.org>
+Verified+1: Steve Kondik <shade@chemlab.org>
+Submitted-by: Steve Kondik <shade@chemlab.org>
+Submitted-at: Wed, 13 Jun 2012 13:17:48 +0400
+Reviewed-on: http://review.cyanogenmod.com/17508
+Project: CyanogenMod/android_dalvik
+Branch: refs/heads/ics
