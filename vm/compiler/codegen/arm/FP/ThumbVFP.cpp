@@ -228,16 +228,13 @@ static bool genCmpFP(CompilationUnit *cUnit, MIR *mir, RegLocation rlDest,
 {
     TemplateOpcode templateOpcode;
     RegLocation rlResult = dvmCompilerGetReturn(cUnit);
-    bool wide = true;
 
     switch(mir->dalvikInsn.opcode) {
         case OP_CMPL_FLOAT:
             templateOpcode = TEMPLATE_CMPL_FLOAT_VFP;
-            wide = false;
             break;
         case OP_CMPG_FLOAT:
             templateOpcode = TEMPLATE_CMPG_FLOAT_VFP;
-            wide = false;
             break;
         case OP_CMPL_DOUBLE:
             templateOpcode = TEMPLATE_CMPL_DOUBLE_VFP;
