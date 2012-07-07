@@ -21,6 +21,7 @@
 #include "native/InternalNativePriv.h"
 
 #include <signal.h>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
