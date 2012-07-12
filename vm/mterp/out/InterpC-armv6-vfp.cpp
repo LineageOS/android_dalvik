@@ -102,7 +102,7 @@
         {                                                                   \
             char* desc;                                                     \
             desc = dexProtoCopyMethodDescriptor(&curMethod->prototype);     \
-            LOGE("Invalid branch %d at 0x%04x in %s.%s %s",                 \
+            ALOGE("Invalid branch %d at 0x%04x in %s.%s %s",                 \
                 myoff, (int) (pc - curMethod->insns),                       \
                 curMethod->clazz->descriptor, curMethod->name, desc);       \
             free(desc);                                                     \
@@ -128,10 +128,10 @@
         char debugStrBuf[128];                                              \
         snprintf(debugStrBuf, sizeof(debugStrBuf), __VA_ARGS__);            \
         if (curMethod != NULL)                                              \
-            LOG(_level, LOG_TAG"i", "%-2d|%04x%s",                          \
+            ALOG(_level, LOG_TAG"i", "%-2d|%04x%s",                          \
                 self->threadId, (int)(pc - curMethod->insns), debugStrBuf); \
         else                                                                \
-            LOG(_level, LOG_TAG"i", "%-2d|####%s",                          \
+            ALOG(_level, LOG_TAG"i", "%-2d|####%s",                          \
                 self->threadId, debugStrBuf);                               \
     } while(false)
 void dvmDumpRegs(const Method* method, const u4* framePtr, bool inOnly);
@@ -320,15 +320,15 @@ static inline bool checkForNull(Object* obj)
         return false;
     }
 #ifdef WITH_EXTRA_OBJECT_VALIDATION
-    if (!dvmIsHeapAddressObject(obj)) {
-        LOGE("Invalid object %p", obj);
+    if (!dvmIsHeapAddress(obj)) {
+        ALOGE("Invalid object %p", obj);
         dvmAbort();
     }
 #endif
 #ifndef NDEBUG
     if (obj->clazz == NULL || ((u4) obj->clazz) <= 65536) {
         /* probable heap corruption */
-        LOGE("Invalid object class %p (in %p)", obj->clazz, obj);
+        ALOGE("Invalid object class %p (in %p)", obj->clazz, obj);
         dvmAbort();
     }
 #endif
@@ -353,14 +353,14 @@ static inline bool checkForNullExportPC(Object* obj, u4* fp, const u2* pc)
     }
 #ifdef WITH_EXTRA_OBJECT_VALIDATION
     if (!dvmIsHeapAddress(obj)) {
-        LOGE("Invalid object %p", obj);
+        ALOGE("Invalid object %p", obj);
         dvmAbort();
     }
 #endif
 #ifndef NDEBUG
     if (obj->clazz == NULL || ((u4) obj->clazz) <= 65536) {
         /* probable heap corruption */
-        LOGE("Invalid object class %p (in %p)", obj->clazz, obj);
+        ALOGE("Invalid object class %p (in %p)", obj->clazz, obj);
         dvmAbort();
     }
 #endif
@@ -471,9 +471,9 @@ static inline bool checkForNullExportPC(Object* obj, u4* fp, const u2* pc)
         return;                                                             \
     } while(false)
 
-#define GOTO_invoke(_target, _methodCallRange, _jumboFormat)                \
+#define GOTO_invoke(_target, _methodCallRange)                              \
     do {                                                                    \
-        dvmMterp_##_target(self, _methodCallRange, _jumboFormat);           \
+        dvmMterp_##_target(self, _methodCallRange);                         \
         return;                                                             \
     } while(false)
 
@@ -505,14 +505,14 @@ static inline bool checkForNullExportPC(Object* obj, u4* fp, const u2* pc)
 
 /* File: c/opcommon.cpp */
 /* forward declarations of goto targets */
-GOTO_TARGET_DECL(filledNewArray, bool methodCallRange, bool jumboFormat);
-GOTO_TARGET_DECL(invokeVirtual, bool methodCallRange, bool jumboFormat);
-GOTO_TARGET_DECL(invokeSuper, bool methodCallRange, bool jumboFormat);
-GOTO_TARGET_DECL(invokeInterface, bool methodCallRange, bool jumboFormat);
-GOTO_TARGET_DECL(invokeDirect, bool methodCallRange, bool jumboFormat);
-GOTO_TARGET_DECL(invokeStatic, bool methodCallRange, bool jumboFormat);
-GOTO_TARGET_DECL(invokeVirtualQuick, bool methodCallRange, bool jumboFormat);
-GOTO_TARGET_DECL(invokeSuperQuick, bool methodCallRange, bool jumboFormat);
+GOTO_TARGET_DECL(filledNewArray, bool methodCallRange);
+GOTO_TARGET_DECL(invokeVirtual, bool methodCallRange);
+GOTO_TARGET_DECL(invokeSuper, bool methodCallRange);
+GOTO_TARGET_DECL(invokeInterface, bool methodCallRange);
+GOTO_TARGET_DECL(invokeDirect, bool methodCallRange);
+GOTO_TARGET_DECL(invokeStatic, bool methodCallRange);
+GOTO_TARGET_DECL(invokeVirtualQuick, bool methodCallRange);
+GOTO_TARGET_DECL(invokeSuperQuick, bool methodCallRange);
 GOTO_TARGET_DECL(invokeMethod, bool methodCallRange, const Method* methodToCall,
     u2 count, u2 regs);
 GOTO_TARGET_DECL(returnFromMethod);
@@ -1036,33 +1036,6 @@ GOTO_TARGET_DECL(exceptionThrown);
     }                                                                       \
     FINISH(2);
 
-#define HANDLE_IGET_X_JUMBO(_opcode, _opname, _ftype, _regsize)             \
-    HANDLE_OPCODE(_opcode /*vBBBB, vCCCC, class@AAAAAAAA*/)                 \
-    {                                                                       \
-        InstField* ifield;                                                  \
-        Object* obj;                                                        \
-        EXPORT_PC();                                                        \
-        ref = FETCH(1) | (u4)FETCH(2) << 16;   /* field ref */              \
-        vdst = FETCH(3);                                                    \
-        vsrc1 = FETCH(4);                      /* object ptr */             \
-        ILOGV("|iget%s/jumbo v%d,v%d,field@0x%08x",                         \
-            (_opname), vdst, vsrc1, ref);                                   \
-        obj = (Object*) GET_REGISTER(vsrc1);                                \
-        if (!checkForNull(obj))                                             \
-            GOTO_exceptionThrown();                                         \
-        ifield = (InstField*) dvmDexGetResolvedField(methodClassDex, ref);  \
-        if (ifield == NULL) {                                               \
-            ifield = dvmResolveInstField(curMethod->clazz, ref);            \
-            if (ifield == NULL)                                             \
-                GOTO_exceptionThrown();                                     \
-        }                                                                   \
-        SET_REGISTER##_regsize(vdst,                                        \
-            dvmGetField##_ftype(obj, ifield->byteOffset));                  \
-        ILOGV("+ IGET '%s'=0x%08llx", ifield->field.name,                   \
-            (u8) GET_REGISTER##_regsize(vdst));                             \
-    }                                                                       \
-    FINISH(5);
-
 #define HANDLE_IGET_X_QUICK(_opcode, _opname, _ftype, _regsize)             \
     HANDLE_OPCODE(_opcode /*vA, vB, field@CCCC*/)                           \
     {                                                                       \
@@ -1106,33 +1079,6 @@ GOTO_TARGET_DECL(exceptionThrown);
             (u8) GET_REGISTER##_regsize(vdst));                             \
     }                                                                       \
     FINISH(2);
-
-#define HANDLE_IPUT_X_JUMBO(_opcode, _opname, _ftype, _regsize)             \
-    HANDLE_OPCODE(_opcode /*vBBBB, vCCCC, class@AAAAAAAA*/)                 \
-    {                                                                       \
-        InstField* ifield;                                                  \
-        Object* obj;                                                        \
-        EXPORT_PC();                                                        \
-        ref = FETCH(1) | (u4)FETCH(2) << 16;   /* field ref */              \
-        vdst = FETCH(3);                                                    \
-        vsrc1 = FETCH(4);                      /* object ptr */             \
-        ILOGV("|iput%s/jumbo v%d,v%d,field@0x%08x",                         \
-            (_opname), vdst, vsrc1, ref);                                   \
-        obj = (Object*) GET_REGISTER(vsrc1);                                \
-        if (!checkForNull(obj))                                             \
-            GOTO_exceptionThrown();                                         \
-        ifield = (InstField*) dvmDexGetResolvedField(methodClassDex, ref);  \
-        if (ifield == NULL) {                                               \
-            ifield = dvmResolveInstField(curMethod->clazz, ref);            \
-            if (ifield == NULL)                                             \
-                GOTO_exceptionThrown();                                     \
-        }                                                                   \
-        dvmSetField##_ftype(obj, ifield->byteOffset,                        \
-            GET_REGISTER##_regsize(vdst));                                  \
-        ILOGV("+ IPUT '%s'=0x%08llx", ifield->field.name,                   \
-            (u8) GET_REGISTER##_regsize(vdst));                             \
-    }                                                                       \
-    FINISH(5);
 
 #define HANDLE_IPUT_X_QUICK(_opcode, _opname, _ftype, _regsize)             \
     HANDLE_OPCODE(_opcode /*vA, vB, field@CCCC*/)                           \
@@ -1183,29 +1129,6 @@ GOTO_TARGET_DECL(exceptionThrown);
     }                                                                       \
     FINISH(2);
 
-#define HANDLE_SGET_X_JUMBO(_opcode, _opname, _ftype, _regsize)             \
-    HANDLE_OPCODE(_opcode /*vBBBB, class@AAAAAAAA*/)                        \
-    {                                                                       \
-        StaticField* sfield;                                                \
-        ref = FETCH(1) | (u4)FETCH(2) << 16;   /* field ref */              \
-        vdst = FETCH(3);                                                    \
-        ILOGV("|sget%s/jumbo v%d,sfield@0x%08x", (_opname), vdst, ref);     \
-        sfield = (StaticField*)dvmDexGetResolvedField(methodClassDex, ref); \
-        if (sfield == NULL) {                                               \
-            EXPORT_PC();                                                    \
-            sfield = dvmResolveStaticField(curMethod->clazz, ref);          \
-            if (sfield == NULL)                                             \
-                GOTO_exceptionThrown();                                     \
-            if (dvmDexGetResolvedField(methodClassDex, ref) == NULL) {      \
-                JIT_STUB_HACK(dvmJitEndTraceSelect(self,pc));               \
-            }                                                               \
-        }                                                                   \
-        SET_REGISTER##_regsize(vdst, dvmGetStaticField##_ftype(sfield));    \
-        ILOGV("+ SGET '%s'=0x%08llx",                                       \
-            sfield->field.name, (u8)GET_REGISTER##_regsize(vdst));          \
-    }                                                                       \
-    FINISH(4);
-
 #define HANDLE_SPUT_X(_opcode, _opname, _ftype, _regsize)                   \
     HANDLE_OPCODE(_opcode /*vAA, field@BBBB*/)                              \
     {                                                                       \
@@ -1228,29 +1151,6 @@ GOTO_TARGET_DECL(exceptionThrown);
             sfield->field.name, (u8)GET_REGISTER##_regsize(vdst));          \
     }                                                                       \
     FINISH(2);
-
-#define HANDLE_SPUT_X_JUMBO(_opcode, _opname, _ftype, _regsize)             \
-    HANDLE_OPCODE(_opcode /*vBBBB, class@AAAAAAAA*/)                        \
-    {                                                                       \
-        StaticField* sfield;                                                \
-        ref = FETCH(1) | (u4)FETCH(2) << 16;   /* field ref */              \
-        vdst = FETCH(3);                                                    \
-        ILOGV("|sput%s/jumbo v%d,sfield@0x%08x", (_opname), vdst, ref);     \
-        sfield = (StaticField*)dvmDexGetResolvedField(methodClassDex, ref); \
-        if (sfield == NULL) {                                               \
-            EXPORT_PC();                                                    \
-            sfield = dvmResolveStaticField(curMethod->clazz, ref);          \
-            if (sfield == NULL)                                             \
-                GOTO_exceptionThrown();                                     \
-            if (dvmDexGetResolvedField(methodClassDex, ref) == NULL) {      \
-                JIT_STUB_HACK(dvmJitEndTraceSelect(self,pc));               \
-            }                                                               \
-        }                                                                   \
-        dvmSetStaticField##_ftype(sfield, GET_REGISTER##_regsize(vdst));    \
-        ILOGV("+ SPUT '%s'=0x%08llx",                                       \
-            sfield->field.name, (u8)GET_REGISTER##_regsize(vdst));          \
-    }                                                                       \
-    FINISH(4);
 
 /* File: cstubs/enddefs.cpp */
 
@@ -1276,6 +1176,8 @@ GOTO_TARGET_DECL(exceptionThrown);
  */
 void dvmMterpDumpArmRegs(uint32_t r0, uint32_t r1, uint32_t r2, uint32_t r3)
 {
+  // TODO: Clang does not support asm declaration syntax.
+#ifndef __clang__
     register uint32_t rPC       asm("r4");
     register uint32_t rFP       asm("r5");
     register uint32_t rSELF     asm("r6");
@@ -1290,6 +1192,7 @@ void dvmMterpDumpArmRegs(uint32_t r0, uint32_t r1, uint32_t r2, uint32_t r3)
     printf("    : rPC=%08x rFP=%08x rSELF=%08x rINST=%08x\n",
         rPC, rFP, rSELF, rINST);
     printf("    : rIBASE=%08x r9=%08x r10=%08x\n", rIBASE, r9, r10);
+#endif
 
     //Thread* self = (Thread*) rSELF;
     //const Method* method = self->method;
