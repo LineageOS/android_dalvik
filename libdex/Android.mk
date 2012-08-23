@@ -50,7 +50,7 @@ include $(CLEAR_VARS)
 #LOCAL_CFLAGS += -UNDEBUG -DDEBUG=1
 ifneq ($(findstring -O3, $(TARGET_GLOBAL_CFLAGS)),)
 # Workaround for https://bugs.launchpad.net/linaro-android/+bug/948255
-LOCAL_CFLAGS += -O2
+LOCAL_CFLAGS += -fno-inline-functions
 endif
 LOCAL_SRC_FILES := $(dex_src_files)
 LOCAL_C_INCLUDES += $(dex_include_files)
