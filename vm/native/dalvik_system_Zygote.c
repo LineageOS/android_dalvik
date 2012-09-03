@@ -21,6 +21,13 @@
 #include "native/InternalNativePriv.h"
 
 #include <signal.h>
+#if defined(__GNUC__) && \
+    defined(__GNUC_MINOR__) && \
+    defined(__GNUC_PATCHLEVEL__) && \
+    ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)) \
+        > 40700
+#include <sys/resource.h>
+#endif
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <grp.h>
@@ -262,7 +269,7 @@ static void Dalvik_dalvik_system_Zygote_fork(const u4* args, JValue* pResult)
  *   easy to handle, because the JDWP thread isn't started until we call
  *   dvmInitAfterZygote().
  * checkjni
- *   If set, make sure "check JNI" is eabled.  This is a little weird,
+ *   If set, make sure "check JNI" is enabled.  This is a little weird,
  *   because we already have the JNIEnv for the main thread set up.  However,
  *   since we only have one thread at this point, it's easy to patch up.
  * assert
