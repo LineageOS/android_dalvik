@@ -7,7 +7,7 @@
     sub     r1, r1, r7, lsl #2          @ r1<- newFp (old savearea - regsSize)
     SAVEAREA_FROM_FP(r10, r1)           @ r10<- stack save area
     cmp     r10, r9                     @ bottom < interpStackEnd?
-    bxlt    lr                          @ return to raise stack overflow excep.
+    bxlo    lr                          @ return to raise stack overflow excep.
     @ r1 = newFP, r0 = methodToCall, r3 = returnCell, rPC = dalvikCallsite
     str     rPC, [rFP, #(offStackSaveArea_currentPc - sizeofStackSaveArea)]
     str     rPC, [r1, #(offStackSaveArea_savedPc - sizeofStackSaveArea)]
@@ -44,8 +44,8 @@
     mov     r0, r2
     mov     r1, r6
     @ r0=JNIMethod, r1=rSELF
-    mov     lr, pc
-    ldr     pc, .LdvmFastMethodTraceEnter
+    ldr     ip, .LdvmFastMethodTraceEnter
+    blx     ip
     ldmfd   sp!, {r0-r3}                @ restore r0-r3
 #endif
 
@@ -54,8 +54,8 @@
 #if defined(TEMPLATE_INLINE_PROFILING)
     ldmfd   sp!, {r0-r1}                @ restore r2 and r6
     @ r0=JNIMethod, r1=rSELF
-    mov     lr, pc
-    ldr     pc, .LdvmFastNativeMethodTraceExit
+    ldr     ip, .LdvmFastNativeMethodTraceExit
+    blx     ip
 #endif
     @ native return; r10=newSaveArea
     @ equivalent to dvmPopJniLocals
