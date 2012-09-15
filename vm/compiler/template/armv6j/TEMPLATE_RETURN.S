@@ -9,8 +9,8 @@
     stmfd   sp!, {r0-r2,lr}             @ preserve live registers
     mov     r0, r6
     @ r0=rSELF
-    mov     lr, pc
-    ldr     pc, .LdvmFastMethodTraceExit
+    ldr     ip, .LdvmFastMethodTraceExit
+    blx     ip
     ldmfd   sp!, {r0-r2,lr}             @ restore live registers
 #endif
     SAVEAREA_FROM_FP(r0, rFP)           @ r0<- saveArea (old)
@@ -30,7 +30,7 @@
 #else
     blxeq   lr                          @ punt to interpreter and compare state
 #endif
-    ldr     r1, .LdvmJitToInterpNoChain @ defined in footer.S
+    ldr     r1, .LdvmJitToInterpNoChainNoProfile @ defined in footer.S
     mov     rFP, r10                    @ publish new FP
     ldr     r10, [r2, #offMethod_clazz] @ r10<- method->clazz
 

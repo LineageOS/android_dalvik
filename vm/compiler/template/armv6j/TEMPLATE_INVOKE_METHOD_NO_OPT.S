@@ -14,7 +14,7 @@
     SAVEAREA_FROM_FP(r10, r1)           @ r10<- stack save area
     sub     r10, r10, r2, lsl #2        @ r10<- bottom (newsave - outsSize)
     cmp     r10, r9                     @ bottom < interpStackEnd?
-    bxlt    lr                          @ return to raise stack overflow excep.
+    bxlo    lr                          @ return to raise stack overflow excep.
     @ r1 = newFP, r0 = methodToCall, r3 = returnCell, rPC = dalvikCallsite
     ldr     r9, [r0, #offMethod_clazz]      @ r9<- method->clazz
     ldr     r10, [r0, #offMethod_accessFlags] @ r10<- methodToCall->accessFlags
@@ -48,8 +48,8 @@
     stmfd   sp!, {r0-r3}                    @ preserve r0-r3
     mov     r1, r6
     @ r0=methodToCall, r1=rSELF
-    mov     lr, pc
-    ldr     pc, .LdvmFastMethodTraceEnter
+    ldr     ip, .LdvmFastMethodTraceEnter
+    blx     ip
     ldmfd   sp!, {r0-r3}                    @ restore r0-r3
 #endif
 
@@ -57,4 +57,4 @@
 #if defined(WITH_JIT_TUNING)
     mov     r0, #kInlineCacheMiss
 #endif
-    mov     pc, r10                         @ dvmJitToInterpTraceSelectNoChain
+    bx      r10                         @ dvmJitToInterpTraceSelectNoChain

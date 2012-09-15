@@ -17,7 +17,7 @@ $chaintgt:
     add     r12, lr, #2                 @ setup the punt-to-interp address
     sub     r10, r10, r2, lsl #2        @ r10<- bottom (newsave - outsSize)
     cmp     r10, r9                     @ bottom < interpStackEnd?
-    bxlt    r12                         @ return to raise stack overflow excep.
+    bxlo    r12                         @ return to raise stack overflow excep.
     @ r1 = newFP, r0 = methodToCall, r3 = returnCell, rPC = dalvikCallsite
     ldr     r9, [r0, #offMethod_clazz]      @ r9<- method->clazz
     str     rPC, [rFP, #(offStackSaveArea_currentPc - sizeofStackSaveArea)]
@@ -41,8 +41,8 @@ $chaintgt:
     stmfd   sp!, {r0-r2,lr}             @ preserve clobbered live registers
     mov     r1, r6
     @ r0=methodToCall, r1=rSELF
-    mov     lr, pc
-    ldr     pc, .LdvmFastMethodTraceEnter
+    ldr     ip, .LdvmFastMethodTraceEnter
+    blx     ip
     ldmfd   sp!, {r0-r2,lr}             @ restore registers
 #endif
 
