@@ -862,8 +862,8 @@ static void updateDebugger(const Method* method, const u2* pc, const u4* fp,
      * terminates "with a thrown exception".
      */
     u2 opcode = GET_OPCODE(*pc);
-    if (opcode == OP_RETURN_VOID || opcode == OP_RETURN ||
-        opcode == OP_RETURN_WIDE ||opcode == OP_RETURN_OBJECT)
+    if (opcode == OP_RETURN_VOID || opcode == OP_RETURN || opcode == OP_RETURN_VOID_BARRIER ||
+        opcode == OP_RETURN_OBJECT || opcode == OP_RETURN_WIDE)
     {
         eventFlags |= DBG_METHOD_EXIT;
     }
@@ -1005,24 +1005,6 @@ void dvmDumpRegs(const Method* method, const u4* framePtr, bool inOnly)
  *      Entry point and general support functions
  * ===========================================================================
  */
-
-/*
- * Construct an s4 from two consecutive half-words of switch data.
- * This needs to check endianness because the DEX optimizer only swaps
- * half-words in instruction stream.
- *
- * "switchData" must be 32-bit aligned.
- */
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-static inline s4 s4FromSwitchData(const void* switchData) {
-    return *(s4*) switchData;
-}
-#else
-static inline s4 s4FromSwitchData(const void* switchData) {
-    u2* data = switchData;
-    return data[0] | (((s4) data[1]) << 16);
-}
-#endif
 
 /*
  * Find the matching case.  Returns the offset to the handler instructions.
@@ -1499,8 +1481,10 @@ void updateInterpBreak(Thread* thread, ExecutionSubModes subMode, bool enable)
             newValue.ctl.breakFlags |= kInterpSingleStep;
         if (newValue.ctl.subMode & SAFEPOINT_BREAK_MASK)
             newValue.ctl.breakFlags |= kInterpSafePoint;
+#ifndef DVM_NO_ASM_INTERP
         newValue.ctl.curHandlerTable = (newValue.ctl.breakFlags) ?
             thread->altHandlerTable : thread->mainHandlerTable;
+#endif
     } while (dvmQuasiAtomicCas64(oldValue.all, newValue.all,
              &thread->interpBreak.all) != 0);
 }
@@ -1572,12 +1556,16 @@ void dvmCheckInterpStateConsistency()
     Thread* thread;
     uint8_t breakFlags;
     uint8_t subMode;
+#ifndef DVM_NO_ASM_INTERP
     void* handlerTable;
+#endif
 
     dvmLockThreadList(self);
     breakFlags = self->interpBreak.ctl.breakFlags;
     subMode = self->interpBreak.ctl.subMode;
+#ifndef DVM_NO_ASM_INTERP
     handlerTable = self->interpBreak.ctl.curHandlerTable;
+#endif
     for (thread = gDvm.threadList; thread != NULL; thread = thread->next) {
         if (subMode != thread->interpBreak.ctl.subMode) {
             ALOGD("Warning: subMode mismatch - %#x:%#x, tid[%d]",
@@ -1587,11 +1575,13 @@ void dvmCheckInterpStateConsistency()
             ALOGD("Warning: breakFlags mismatch - %#x:%#x, tid[%d]",
                 breakFlags,thread->interpBreak.ctl.breakFlags,thread->threadId);
          }
+#ifndef DVM_NO_ASM_INTERP
         if (handlerTable != thread->interpBreak.ctl.curHandlerTable) {
             ALOGD("Warning: curHandlerTable mismatch - %#x:%#x, tid[%d]",
                 (int)handlerTable,(int)thread->interpBreak.ctl.curHandlerTable,
                 thread->threadId);
          }
+#endif
 #if defined(WITH_JIT)
          if (thread->pJitProfTable != gDvmJit.pProfTable) {
              ALOGD("Warning: pJitProfTable mismatch - %#x:%#x, tid[%d]",
@@ -1970,7 +1960,9 @@ void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
     if (gDvm.executionMode == kExecutionModeInterpFast)
         stdInterp = dvmMterpStd;
 #if defined(WITH_JIT)
-    else if (gDvm.executionMode == kExecutionModeJit)
+    else if (gDvm.executionMode == kExecutionModeJit ||
+             gDvm.executionMode == kExecutionModeNcgO0 ||
+             gDvm.executionMode == kExecutionModeNcgO1)
         stdInterp = dvmMterpStd;
 #endif
     else

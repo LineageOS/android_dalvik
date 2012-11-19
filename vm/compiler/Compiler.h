@@ -27,6 +27,7 @@
 
 #define COMPILER_WORK_QUEUE_SIZE        100
 #define COMPILER_IC_PATCH_QUEUE_SIZE    64
+#define COMPILER_PC_OFFSET_SIZE         100
 
 /* Architectural-independent parameters for predicted chains */
 #define PREDICTED_CHAIN_CLAZZ_INIT       0
@@ -74,7 +75,8 @@ typedef enum JitInstructionSetType {
     DALVIK_JIT_ARM,
     DALVIK_JIT_THUMB,
     DALVIK_JIT_THUMB2,
-    DALVIK_JIT_IA32
+    DALVIK_JIT_IA32,
+    DALVIK_JIT_MIPS
 } JitInstructionSetType;
 
 /* Description of a compiled trace. */
@@ -107,6 +109,11 @@ typedef struct CompilerWorkOrder {
 /* Chain cell for predicted method invocation */
 typedef struct PredictedChainingCell {
     u4 branch;                  /* Branch to chained destination */
+#ifdef __mips__
+    u4 delay_slot;              /* nop goes here */
+#elif defined(ARCH_IA32)
+    u4 branch2;                 /* IA32 branch instr may be > 32 bits */
+#endif
     const ClassObject *clazz;   /* key for prediction */
     const Method *method;       /* to lookup native PC from dalvik PC */
     const ClassObject *stagedClazz;   /* possible next key for prediction */
@@ -241,5 +248,6 @@ extern "C" void *dvmCompilerGetInterpretTemplate();
 JitInstructionSetType dvmCompilerGetInterpretTemplateSet();
 u8 dvmGetRegResourceMask(int reg);
 void dvmDumpCFG(struct CompilationUnit *cUnit, const char *dirPrefix);
+bool dvmIsOpcodeSupportedByJit(Opcode opcode);
 
 #endif  // DALVIK_VM_COMPILER_H_

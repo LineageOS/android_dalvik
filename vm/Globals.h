@@ -90,6 +90,9 @@ struct DvmGlobals {
     size_t      heapStartingSize;
     size_t      heapMaximumSize;
     size_t      heapGrowthLimit;
+    double      heapTargetUtilization;
+    size_t      heapMinFree;
+    size_t      heapMaxFree;
     size_t      stackSize;
     size_t      mainThreadStackSize;
 
@@ -154,6 +157,9 @@ struct DvmGlobals {
     AssertionControl*   assertionCtrl;
 
     ExecutionMode   executionMode;
+
+    bool        commonInit; /* whether common stubs are generated */
+    bool        constInit; /* whether global constants are initialized */
 
     /*
      * VM init management.
@@ -870,14 +876,27 @@ struct DvmJitGlobals {
     /* true/false: compile/reject methods specified in the -Xjitmethod list */
     bool includeSelectedMethod;
 
+    /* true/false: compile/reject traces with offset specified in the -Xjitoffset list */
+    bool includeSelectedOffset;
+
     /* Disable JIT for selected opcodes - one bit for each opcode */
     char opList[(kNumPackedOpcodes+7)/8];
 
     /* Disable JIT for selected methods */
     HashTable *methodTable;
 
+    /* Disable JIT for selected classes */
+    HashTable *classTable;
+
+    /* Disable JIT for selected offsets */
+    unsigned int pcTable[COMPILER_PC_OFFSET_SIZE];
+    int num_entries_pcTable;
+
     /* Flag to dump all compiled code */
     bool printMe;
+
+    /* Flag to dump compiled binary code in bytes */
+    bool printBinary;
 
     /* Per-process debug flag toggled when receiving a SIGUSR2 */
     bool receivedSIGUSR2;
@@ -946,6 +965,10 @@ struct DvmJitGlobals {
     u8                 compilerThreadBlockGCStart;
     u8                 compilerThreadBlockGCTime;
     u8                 maxCompilerThreadBlockGCTime;
+#endif
+
+#if defined(ARCH_IA32)
+    JitOptLevel        optLevel;
 #endif
 
     /* Place arrays at the end to ease the display in gdb sessions */

@@ -68,6 +68,14 @@
 #if defined(__ARM_EABI__)
 # define NO_UNALIGN_64__UNION
 #endif
+/*
+ * MIPS ABI requires 64-bit alignment for access to 64-bit data types.
+ *
+ * Use memcpy() to do the transfer
+ */
+#if defined(__mips__)
+/* # define NO_UNALIGN_64__UNION */
+#endif
 
 
 //#define LOG_INSTR                   /* verbose debugging */
@@ -452,6 +460,8 @@ static inline bool checkForNullExportPC(Object* obj, u4* fp, const u2* pc)
     }
 #endif
 
+#define FINISH_BKPT(_opcode)       /* FIXME? */
+#define DISPATCH_EXTENDED(_opcode) /* FIXME? */
 
 /*
  * The "goto label" statements turn into function calls followed by
@@ -488,7 +498,7 @@ static inline bool checkForNullExportPC(Object* obj, u4* fp, const u2* pc)
  * As a special case, "goto bail" turns into a longjmp.
  */
 #define GOTO_bail()                                                         \
-    dvmMterpStdBail(self, false);
+    dvmMterpStdBail(self)
 
 /*
  * Periodically check for thread suspension.
@@ -1031,7 +1041,7 @@ GOTO_TARGET_DECL(exceptionThrown);
         }                                                                   \
         SET_REGISTER##_regsize(vdst,                                        \
             dvmGetField##_ftype(obj, ifield->byteOffset));                  \
-        ILOGV("+ IGET '%s'=0x%08llx", ifield->field.name,                   \
+        ILOGV("+ IGET '%s'=0x%08llx", ifield->name,                         \
             (u8) GET_REGISTER##_regsize(vdst));                             \
     }                                                                       \
     FINISH(2);
@@ -1075,7 +1085,7 @@ GOTO_TARGET_DECL(exceptionThrown);
         }                                                                   \
         dvmSetField##_ftype(obj, ifield->byteOffset,                        \
             GET_REGISTER##_regsize(vdst));                                  \
-        ILOGV("+ IPUT '%s'=0x%08llx", ifield->field.name,                   \
+        ILOGV("+ IPUT '%s'=0x%08llx", ifield->name,                         \
             (u8) GET_REGISTER##_regsize(vdst));                             \
     }                                                                       \
     FINISH(2);
@@ -1125,7 +1135,7 @@ GOTO_TARGET_DECL(exceptionThrown);
         }                                                                   \
         SET_REGISTER##_regsize(vdst, dvmGetStaticField##_ftype(sfield));    \
         ILOGV("+ SGET '%s'=0x%08llx",                                       \
-            sfield->field.name, (u8)GET_REGISTER##_regsize(vdst));          \
+            sfield->name, (u8)GET_REGISTER##_regsize(vdst));                \
     }                                                                       \
     FINISH(2);
 
@@ -1148,7 +1158,7 @@ GOTO_TARGET_DECL(exceptionThrown);
         }                                                                   \
         dvmSetStaticField##_ftype(sfield, GET_REGISTER##_regsize(vdst));    \
         ILOGV("+ SPUT '%s'=0x%08llx",                                       \
-            sfield->field.name, (u8)GET_REGISTER##_regsize(vdst));          \
+            sfield->name, (u8)GET_REGISTER##_regsize(vdst));                \
     }                                                                       \
     FINISH(2);
 

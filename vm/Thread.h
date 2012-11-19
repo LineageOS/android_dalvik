@@ -92,7 +92,7 @@ union InterpBreak {
 #ifndef DVM_NO_ASM_INTERP
         void* curHandlerTable;
 #else
-        void* unused;
+        int32_t    unused1;
 #endif
     } ctl;
 };
@@ -303,6 +303,10 @@ struct Thread {
     pthread_mutex_t   callbackMutex;
     SafePointCallback callback;
     void*             callbackArg;
+
+#if defined(ARCH_IA32) && defined(WITH_JIT)
+    u4 spillRegion[MAX_SPILL_JIT_IA];
+#endif
 };
 
 /* start point for an internal thread; mimics pthread args */

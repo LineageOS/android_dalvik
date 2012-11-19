@@ -68,6 +68,14 @@
 #if defined(__ARM_EABI__)
 # define NO_UNALIGN_64__UNION
 #endif
+/*
+ * MIPS ABI requires 64-bit alignment for access to 64-bit data types.
+ *
+ * Use memcpy() to do the transfer
+ */
+#if defined(__mips__)
+/* # define NO_UNALIGN_64__UNION */
+#endif
 
 
 //#define LOG_INSTR                   /* verbose debugging */
@@ -979,7 +987,7 @@ GOTO_TARGET_DECL(exceptionThrown);
         }                                                                   \
         SET_REGISTER##_regsize(vdst,                                        \
             dvmGetField##_ftype(obj, ifield->byteOffset));                  \
-        ILOGV("+ IGET '%s'=0x%08llx", ifield->field.name,                   \
+        ILOGV("+ IGET '%s'=0x%08llx", ifield->name,                         \
             (u8) GET_REGISTER##_regsize(vdst));                             \
     }                                                                       \
     FINISH(2);
@@ -1023,7 +1031,7 @@ GOTO_TARGET_DECL(exceptionThrown);
         }                                                                   \
         dvmSetField##_ftype(obj, ifield->byteOffset,                        \
             GET_REGISTER##_regsize(vdst));                                  \
-        ILOGV("+ IPUT '%s'=0x%08llx", ifield->field.name,                   \
+        ILOGV("+ IPUT '%s'=0x%08llx", ifield->name,                         \
             (u8) GET_REGISTER##_regsize(vdst));                             \
     }                                                                       \
     FINISH(2);
@@ -1073,7 +1081,7 @@ GOTO_TARGET_DECL(exceptionThrown);
         }                                                                   \
         SET_REGISTER##_regsize(vdst, dvmGetStaticField##_ftype(sfield));    \
         ILOGV("+ SGET '%s'=0x%08llx",                                       \
-            sfield->field.name, (u8)GET_REGISTER##_regsize(vdst));          \
+            sfield->name, (u8)GET_REGISTER##_regsize(vdst));                \
     }                                                                       \
     FINISH(2);
 
@@ -1096,7 +1104,7 @@ GOTO_TARGET_DECL(exceptionThrown);
         }                                                                   \
         dvmSetStaticField##_ftype(sfield, GET_REGISTER##_regsize(vdst));    \
         ILOGV("+ SPUT '%s'=0x%08llx",                                       \
-            sfield->field.name, (u8)GET_REGISTER##_regsize(vdst));          \
+            sfield->name, (u8)GET_REGISTER##_regsize(vdst));                \
     }                                                                       \
     FINISH(2);
 
@@ -1845,7 +1853,7 @@ HANDLE_OPCODE(OP_PACKED_SWITCH /*vAA, +BBBB*/)
 
         vsrc1 = INST_AA(inst);
         offset = FETCH(1) | (((s4) FETCH(2)) << 16);
-        ILOGV("|packed-switch v%d +0x%04x", vsrc1, vsrc2);
+        ILOGV("|packed-switch v%d +0x%04x", vsrc1, offset);
         switchData = pc + offset;       // offset in 16-bit units
 #ifndef NDEBUG
         if (switchData < curMethod->insns ||
@@ -1876,7 +1884,7 @@ HANDLE_OPCODE(OP_SPARSE_SWITCH /*vAA, +BBBB*/)
 
         vsrc1 = INST_AA(inst);
         offset = FETCH(1) | (((s4) FETCH(2)) << 16);
-        ILOGV("|sparse-switch v%d +0x%04x", vsrc1, vsrc2);
+        ILOGV("|sparse-switch v%d +0x%04x", vsrc1, offset);
         switchData = pc + offset;       // offset in 16-bit units
 #ifndef NDEBUG
         if (switchData < curMethod->insns ||
@@ -2053,7 +2061,7 @@ HANDLE_OPCODE(OP_APUT_OBJECT /*vAA, vBB, vCC*/)
             if (!dvmCanPutArrayElement(obj->clazz, arrayObj->clazz)) {
                 ALOGV("Can't put a '%s'(%p) into array type='%s'(%p)",
                     obj->clazz->descriptor, obj,
-                    arrayObj->obj.clazz->descriptor, arrayObj);
+                    arrayObj->clazz->descriptor, arrayObj);
                 dvmThrowArrayStoreExceptionIncompatibleElement(obj->clazz, arrayObj->clazz);
                 GOTO_exceptionThrown();
             }
@@ -2860,7 +2868,7 @@ HANDLE_OPCODE(OP_EXECUTE_INLINE /*vB, {vD, vE, vF, vG}, inline@CCCC*/)
             ;
         }
 
-        if (self->interpBreak.ctl.subMode & kSubModeDebuggerActive) {
+        if (self->interpBreak.ctl.subMode & kSubModeDebugProfile) {
             if (!dvmPerformInlineOp4Dbg(arg0, arg1, arg2, arg3, &retval, ref))
                 GOTO_exceptionThrown();
         } else {
@@ -2905,7 +2913,7 @@ HANDLE_OPCODE(OP_EXECUTE_INLINE_RANGE /*{vCCCC..v(CCCC+AA-1)}, inline@BBBB*/)
             ;
         }
 
-        if (self->interpBreak.ctl.subMode & kSubModeDebuggerActive) {
+        if (self->interpBreak.ctl.subMode & kSubModeDebugProfile) {
             if (!dvmPerformInlineOp4Dbg(arg0, arg1, arg2, arg3, &retval, ref))
                 GOTO_exceptionThrown();
         } else {
@@ -3943,7 +3951,7 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
             DUMP_REGS(methodToCall, newFp, true);   // show input args
 
             if (self->interpBreak.ctl.subMode != 0) {
-                dvmReportPreNativeInvoke(methodToCall, self, fp);
+                dvmReportPreNativeInvoke(methodToCall, self, newSaveArea->prevFrame);
             }
 
             ILOGD("> native <-- %s.%s %s", methodToCall->clazz->descriptor,
@@ -3957,12 +3965,13 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
             (*methodToCall->nativeFunc)(newFp, &retval, methodToCall, self);
 
             if (self->interpBreak.ctl.subMode != 0) {
-                dvmReportPostNativeInvoke(methodToCall, self, fp);
+                dvmReportPostNativeInvoke(methodToCall, self, newSaveArea->prevFrame);
             }
 
             /* pop frame off */
             dvmPopJniLocals(self, newSaveArea);
-            self->interpSave.curFrame = fp;
+            self->interpSave.curFrame = newSaveArea->prevFrame;
+            fp = newSaveArea->prevFrame;
 
             /*
              * If the native code threw an exception, or interpreted code

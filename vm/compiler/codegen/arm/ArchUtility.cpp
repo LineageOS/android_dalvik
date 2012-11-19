@@ -421,7 +421,18 @@ void dvmCompilerCodegenDump(CompilationUnit *cUnit)
 }
 
 /* Target-specific cache flushing */
-int dvmCompilerCacheFlush(long start, long end, long flags)
+void dvmCompilerCacheFlush(long start, long end, long flags)
 {
-    return cacheflush(start, end, flags);
+    cacheflush(start, end, flags);
+}
+
+/* Target-specific cache clearing */
+void dvmCompilerCacheClear(char *start, size_t size)
+{
+    /*
+     * de is an invalid opcode for arm.
+     * From gdb disassembly:  <UNDEFINED> instruction: 0xdede
+     */
+
+    memset(start, 0xde, size);
 }

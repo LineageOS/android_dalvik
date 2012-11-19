@@ -2913,15 +2913,25 @@ static bool createVtable(ClassObject* clazz)
             for (si = 0; si < clazz->super->vtableCount; si++) {
                 Method* superMeth = clazz->vtable[si];
 
-                if (dvmCompareMethodNamesAndProtos(localMeth, superMeth) == 0)
-                {
-                    /* verify */
+                if (dvmCompareMethodNamesAndProtos(localMeth, superMeth) == 0) {
+                    // We should have an access check here, but some apps rely on us not
+                    // checking access: http://b/7301030
+                    bool isAccessible = dvmCheckMethodAccess(clazz, superMeth);
                     if (dvmIsFinalMethod(superMeth)) {
-                        ALOGW("Method %s.%s overrides final %s.%s",
-                            localMeth->clazz->descriptor, localMeth->name,
-                            superMeth->clazz->descriptor, superMeth->name);
+                        ALOGE("Method %s.%s overrides final %s.%s",
+                              localMeth->clazz->descriptor, localMeth->name,
+                              superMeth->clazz->descriptor, superMeth->name);
                         goto bail;
                     }
+
+                    // Warn if we just spotted code relying on this bug...
+                    if (!isAccessible) {
+                        ALOGW("method %s.%s incorrectly overrides "
+                              "package-private method with same name in %s",
+                              localMeth->clazz->descriptor, localMeth->name,
+                              superMeth->clazz->descriptor);
+                    }
+
                     clazz->vtable[si] = localMeth;
                     localMeth->methodIndex = (u2) si;
                     //ALOGV("+++   override %s.%s (slot %d)",

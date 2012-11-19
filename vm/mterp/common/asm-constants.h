@@ -40,7 +40,7 @@
  * data structures.  Some versions of gcc will hold small enumerated types
  * in a char instead of an int.
  */
-#if defined(__ARM_EABI__)
+#if defined(__ARM_EABI__) || defined(__mips__)
 # define MTERP_NO_UNALIGN_64
 #endif
 #if defined(HAVE_SHORT_ENUMS)
@@ -152,7 +152,11 @@ MTERP_OFFSET(offThread_method,            Thread, interpSave.method, 8)
 MTERP_OFFSET(offThread_methodClassDex,    Thread, interpSave.methodClassDex, 12)
 /* make sure all JValue union members are stored at the same offset */
 MTERP_OFFSET(offThread_retval,            Thread, interpSave.retval, 16)
+#ifdef HAVE_BIG_ENDIAN
+MTERP_OFFSET(offThread_retval_z,          Thread, interpSave.retval.z, 19)
+#else
 MTERP_OFFSET(offThread_retval_z,          Thread, interpSave.retval.z, 16)
+#endif
 MTERP_OFFSET(offThread_retval_i,          Thread, interpSave.retval.i, 16)
 MTERP_OFFSET(offThread_retval_j,          Thread, interpSave.retval.j, 16)
 MTERP_OFFSET(offThread_retval_l,          Thread, interpSave.retval.l, 16)
@@ -316,3 +320,9 @@ MTERP_CONSTANT(kInterpSafePoint,          0x02)
 
 MTERP_CONSTANT(DBG_METHOD_ENTRY,          0x04)
 MTERP_CONSTANT(DBG_METHOD_EXIT,           0x08)
+
+#if defined(__thumb__)
+# define PCREL_REF(sym,label) sym-(label+4)
+#else
+# define PCREL_REF(sym,label) sym-(label+8)
+#endif

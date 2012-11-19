@@ -71,6 +71,7 @@ ifeq ($(WITH_JIT),true)
     LOCAL_MODULE := libdvm_assert
     include $(BUILD_SHARED_LIBRARY)
 
+  ifneq ($(dvm_arch),mips)    # MIPS support for self-verification is incomplete
     # Derivation #2
     # Enable assert and self-verification
     include $(LOCAL_PATH)/ReconfigureDvm.mk
@@ -80,6 +81,7 @@ ifeq ($(WITH_JIT),true)
                     -DWITH_SELF_VERIFICATION $(target_smp_flag)
     LOCAL_MODULE := libdvm_sv
     include $(BUILD_SHARED_LIBRARY)
+  endif # dvm_arch!=mips
 
     # Derivation #3
     # Compile out the JIT
@@ -90,6 +92,10 @@ ifeq ($(WITH_JIT),true)
     LOCAL_MODULE := libdvm_interp
     include $(BUILD_SHARED_LIBRARY)
 
+  ifeq ($(dvm_arch),x86)    # For x86, we enable JIT on host too
+    # restore WITH_JIT = true for host dalvik build
+    WITH_JIT := true
+  endif # dvm_arch==x86
 endif
 
 #
@@ -106,7 +112,11 @@ ifeq ($(WITH_HOST_DALVIK),true)
     # Note: HOST_ARCH_VARIANT isn't defined.
     dvm_arch_variant := $(HOST_ARCH)
 
-    WITH_JIT := false
+    # We always want the x86 JIT.
+    ifeq ($(dvm_arch),x86)
+        WITH_JIT := true
+    endif
+
     include $(LOCAL_PATH)/Dvm.mk
 
     LOCAL_SHARED_LIBRARIES += libcrypto libssl libicuuc libicui18n

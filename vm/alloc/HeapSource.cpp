@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <cutils/mspace.h>
 #include <stdint.h>
 #include <sys/mman.h>
 #include <errno.h>
@@ -22,15 +21,12 @@
 #define SIZE_MAX UINT_MAX  // TODO: get SIZE_MAX from stdint.h
 
 #include "Dalvik.h"
+#include "alloc/DlMalloc.h"
 #include "alloc/Heap.h"
 #include "alloc/HeapInternal.h"
 #include "alloc/HeapSource.h"
 #include "alloc/HeapBitmap.h"
 #include "alloc/HeapBitmapInlines.h"
-
-// TODO: find a real header file for these.
-extern "C" int dlmalloc_trim(size_t);
-extern "C" void dlmalloc_walk_free_pages(void(*)(void*, void*, void*), void*);
 
 static void snapIdealFootprint();
 static void setIdealFootprint(size_t max);
@@ -38,9 +34,6 @@ static size_t getMaximumSize(const HeapSource *hs);
 static void trimHeaps();
 
 #define HEAP_UTILIZATION_MAX        1024
-#define DEFAULT_HEAP_UTILIZATION    512     // Range 1..HEAP_UTILIZATION_MAX
-#define HEAP_IDEAL_FREE             (2 * 1024 * 1024)
-#define HEAP_MIN_FREE               (HEAP_IDEAL_FREE / 4)
 
 /* How long to wait after a GC before performing a heap trim
  * operation to reclaim unused pages.
@@ -97,6 +90,12 @@ struct Heap {
      * The highest address of this heap, exclusive.
      */
     char *limit;
+
+    /*
+     * If the heap has an mspace, the current high water mark in
+     * allocations requested via dvmHeapSourceMorecore.
+     */
+    char *brk;
 };
 
 struct HeapSource {
@@ -131,6 +130,18 @@ struct HeapSource {
      * heap in lieu of actual compaction.
      */
     size_t softLimit;
+
+    /* Minimum number of free bytes. Used with the target utilization when
+     * setting the softLimit. Never allows less bytes than this to be free
+     * when the heap size is below the maximum size or growth limit.
+     */
+    size_t minFree;
+
+    /* Maximum number of free bytes. Used with the target utilization when
+     * setting the softLimit. Never allows more bytes than this to be free
+     * when the heap size is below the maximum size or growth limit.
+     */
+    size_t maxFree;
 
     /* The heaps; heaps[0] is always the active heap,
      * which new objects should be allocated from.
@@ -201,7 +212,7 @@ static size_t getAllocLimit(const HeapSource *hs)
     if (isSoftLimited(hs)) {
         return hs->softLimit;
     } else {
-        return mspace_max_allowed_footprint(hs2heap(hs)->msp);
+        return mspace_footprint_limit(hs2heap(hs)->msp);
     }
 }
 
@@ -258,7 +269,7 @@ static void countAllocation(Heap *heap, const void *ptr)
 {
     assert(heap->bytesAllocated < mspace_footprint(heap->msp));
 
-    heap->bytesAllocated += mspace_usable_size(heap->msp, ptr) +
+    heap->bytesAllocated += mspace_usable_size(ptr) +
             HEAP_SOURCE_CHUNK_OVERHEAD;
     heap->objectsAllocated++;
     HeapSource* hs = gDvm.gcHeap->heapSource;
@@ -269,7 +280,7 @@ static void countAllocation(Heap *heap, const void *ptr)
 
 static void countFree(Heap *heap, const void *ptr, size_t *numBytes)
 {
-    size_t delta = mspace_usable_size(heap->msp, ptr) + HEAP_SOURCE_CHUNK_OVERHEAD;
+    size_t delta = mspace_usable_size(ptr) + HEAP_SOURCE_CHUNK_OVERHEAD;
     assert(delta > 0);
     if (delta < heap->bytesAllocated) {
         heap->bytesAllocated -= delta;
@@ -286,37 +297,64 @@ static void countFree(Heap *heap, const void *ptr, size_t *numBytes)
 
 static HeapSource *gHs = NULL;
 
-static mspace createMspace(void *base, size_t startSize, size_t maximumSize)
+static mspace createMspace(void* begin, size_t morecoreStart, size_t startingSize)
 {
-    /* Create an unlocked dlmalloc mspace to use as
-     * a heap source.
-     *
-     * We start off reserving startSize / 2 bytes but
-     * letting the heap grow to startSize.  This saves
-     * memory in the case where a process uses even less
-     * than the starting size.
-     */
-    LOGV_HEAP("Creating VM heap of size %zu", startSize);
+    // Clear errno to allow strerror on error.
     errno = 0;
-
-    mspace msp = create_contiguous_mspace_with_base(startSize/2,
-            maximumSize, /*locked=*/false, base);
+    // Allow access to inital pages that will hold mspace.
+    mprotect(begin, morecoreStart, PROT_READ | PROT_WRITE);
+    // Create mspace using our backing storage starting at begin and with a footprint of
+    // morecoreStart. Don't use an internal dlmalloc lock. When morecoreStart bytes of memory are
+    // exhausted morecore will be called.
+    mspace msp = create_mspace_with_base(begin, morecoreStart, false /*locked*/);
     if (msp != NULL) {
-        /* Don't let the heap grow past the starting size without
-         * our intervention.
-         */
-        mspace_set_max_allowed_footprint(msp, startSize);
+        // Do not allow morecore requests to succeed beyond the starting size of the heap.
+        mspace_set_footprint_limit(msp, startingSize);
     } else {
-        /* There's no guarantee that errno has meaning when the call
-         * fails, but it often does.
-         */
-        LOGE_HEAP("Can't create VM heap of size (%zu,%zu): %s",
-            startSize/2, maximumSize, strerror(errno));
+        ALOGE("create_mspace_with_base failed %s", strerror(errno));
     }
-
     return msp;
 }
 
+/*
+ * Service request from DlMalloc to increase heap size.
+ */
+void* dvmHeapSourceMorecore(void* mspace, intptr_t increment)
+{
+    Heap* heap = NULL;
+    for (size_t i = 0; i < gHs->numHeaps; i++) {
+        if (gHs->heaps[i].msp == mspace) {
+            heap = &gHs->heaps[i];
+            break;
+        }
+    }
+    if (heap == NULL) {
+        ALOGE("Failed to find heap for mspace %p", mspace);
+        dvmAbort();
+    }
+    char* original_brk = heap->brk;
+    if (increment != 0) {
+        char* new_brk = original_brk + increment;
+        if (increment > 0) {
+            // Should never be asked to increase the allocation beyond the capacity of the space.
+            // Enforced by mspace_set_footprint_limit.
+            assert(new_brk <= heap->limit);
+            mprotect(original_brk, increment, PROT_READ | PROT_WRITE);
+        } else {
+            // Should never be asked for negative footprint (ie before base).
+            assert(original_brk + increment > heap->base);
+            // Advise we don't need the pages and protect them.
+            size_t size = -increment;
+            madvise(new_brk, size, MADV_DONTNEED);
+            mprotect(new_brk, size, PROT_NONE);
+        }
+        // Update brk.
+        heap->brk = new_brk;
+    }
+    return original_brk;
+}
+
+const size_t kInitialMorecoreStart = SYSTEM_PAGE_SIZE;
 /*
  * Add the initial heap.  Returns false if the initial heap was
  * already added to the heap source.
@@ -332,7 +370,8 @@ static bool addInitialHeap(HeapSource *hs, mspace msp, size_t maximumSize)
     hs->heaps[0].maximumSize = maximumSize;
     hs->heaps[0].concurrentStartBytes = SIZE_MAX;
     hs->heaps[0].base = hs->heapBase;
-    hs->heaps[0].limit = hs->heapBase + hs->heaps[0].maximumSize;
+    hs->heaps[0].limit = hs->heapBase + maximumSize;
+    hs->heaps[0].brk = hs->heapBase + kInitialMorecoreStart;
     hs->numHeaps = 1;
     return true;
 }
@@ -359,23 +398,23 @@ static bool addNewHeap(HeapSource *hs)
      * Heap storage comes from a common virtual memory reservation.
      * The new heap will start on the page after the old heap.
      */
-    void *sbrk0 = contiguous_mspace_sbrk0(hs->heaps[0].msp);
-    char *base = (char *)ALIGN_UP_TO_PAGE_SIZE(sbrk0);
+    char *base = hs->heaps[0].brk;
     size_t overhead = base - hs->heaps[0].base;
     assert(((size_t)hs->heaps[0].base & (SYSTEM_PAGE_SIZE - 1)) == 0);
 
-    if (overhead + HEAP_MIN_FREE >= hs->maximumSize) {
+    if (overhead + hs->minFree >= hs->maximumSize) {
         LOGE_HEAP("No room to create any more heaps "
                   "(%zd overhead, %zd max)",
                   overhead, hs->maximumSize);
         return false;
     }
-
+    size_t morecoreStart = SYSTEM_PAGE_SIZE;
     heap.maximumSize = hs->growthLimit - overhead;
-    heap.concurrentStartBytes = HEAP_MIN_FREE - CONCURRENT_START;
+    heap.concurrentStartBytes = hs->minFree - CONCURRENT_START;
     heap.base = base;
     heap.limit = heap.base + heap.maximumSize;
-    heap.msp = createMspace(base, HEAP_MIN_FREE, hs->maximumSize - overhead);
+    heap.brk = heap.base + morecoreStart;
+    heap.msp = createMspace(base, morecoreStart, hs->minFree);
     if (heap.msp == NULL) {
         return false;
     }
@@ -384,8 +423,7 @@ static bool addNewHeap(HeapSource *hs)
      */
     hs->heaps[0].maximumSize = overhead;
     hs->heaps[0].limit = base;
-    mspace msp = hs->heaps[0].msp;
-    mspace_set_max_allowed_footprint(msp, mspace_footprint(msp));
+    mspace_set_footprint_limit(hs->heaps[0].msp, overhead);
 
     /* Put the new heap in the list, at heaps[0].
      * Shift existing heaps down.
@@ -530,7 +568,7 @@ GcHeap* dvmHeapSourceStartup(size_t startSize, size_t maximumSize,
     /* Create an unlocked dlmalloc mspace to use as
      * a heap source.
      */
-    msp = createMspace(base, startSize, maximumSize);
+    msp = createMspace(base, kInitialMorecoreStart, startSize);
     if (msp == NULL) {
         goto fail;
     }
@@ -548,7 +586,9 @@ GcHeap* dvmHeapSourceStartup(size_t startSize, size_t maximumSize,
         goto fail;
     }
 
-    hs->targetUtilization = DEFAULT_HEAP_UTILIZATION;
+    hs->targetUtilization = gDvm.heapTargetUtilization * HEAP_UTILIZATION_MAX;
+    hs->minFree = gDvm.heapMinFree;
+    hs->maxFree = gDvm.heapMaxFree;
     hs->startSize = startSize;
     hs->maximumSize = maximumSize;
     hs->growthLimit = growthLimit;
@@ -559,6 +599,16 @@ GcHeap* dvmHeapSourceStartup(size_t startSize, size_t maximumSize,
     hs->hasGcThread = false;
     hs->heapBase = (char *)base;
     hs->heapLength = length;
+
+    if (hs->maxFree > hs->maximumSize) {
+      hs->maxFree = hs->maximumSize;
+    }
+    if (hs->minFree < CONCURRENT_START) {
+      hs->minFree = CONCURRENT_START;
+    } else if (hs->minFree > hs->maxFree) {
+      hs->minFree = hs->maxFree;
+    }
+
     if (!addInitialHeap(hs, msp, growthLimit)) {
         LOGE_HEAP("Can't add initial heap");
         goto fail;
@@ -610,6 +660,9 @@ bool dvmHeapSourceStartupBeforeFork()
     assert(gDvm.zygote);
 
     if (!gDvm.newZygoteHeapAllocated) {
+       /* Ensure heaps are trimmed to minimize footprint pre-fork.
+        */
+        trimHeaps();
         /* Create a new heap for post-fork zygote allocations.  We only
          * try once, even if it fails.
          */
@@ -657,6 +710,25 @@ void *dvmHeapSourceGetBase()
 }
 
 /*
+ * Returns a high water mark, between base and limit all objects must have been
+ * allocated.
+ */
+void *dvmHeapSourceGetLimit()
+{
+    HeapSource *hs = gHs;
+    void *max_brk = hs->heaps[0].brk;
+
+#ifndef NDEBUG
+    for (size_t i = 1; i < hs->numHeaps; i++) {
+        Heap *const heap = &hs->heaps[i];
+        void *heap_brk = heap->brk;
+        assert (max_brk > heap_brk);
+    }
+#endif
+    return max_brk;
+}
+
+/*
  * Returns the requested value. If the per-heap stats are requested, fill
  * them as well.
  *
@@ -677,10 +749,11 @@ size_t dvmHeapSourceGetValue(HeapSourceValueSpec spec, size_t perHeapStats[],
 
         switch (spec) {
         case HS_FOOTPRINT:
-            value = mspace_footprint(heap->msp);
+            value = heap->brk - heap->base;
+            assert(value == mspace_footprint(heap->msp));
             break;
         case HS_ALLOWED_FOOTPRINT:
-            value = mspace_max_allowed_footprint(heap->msp);
+            value = mspace_footprint_limit(heap->msp);
             break;
         case HS_BYTES_ALLOCATED:
             value = heap->bytesAllocated;
@@ -837,14 +910,14 @@ static void* heapAllocAndGrow(HeapSource *hs, Heap *heap, size_t n)
      */
     size_t max = heap->maximumSize;
 
-    mspace_set_max_allowed_footprint(heap->msp, max);
+    mspace_set_footprint_limit(heap->msp, max);
     void* ptr = dvmHeapSourceAlloc(n);
 
     /* Shrink back down as small as possible.  Our caller may
      * readjust max_allowed to a more appropriate value.
      */
-    mspace_set_max_allowed_footprint(heap->msp,
-                                     mspace_footprint(heap->msp));
+    mspace_set_footprint_limit(heap->msp,
+                               mspace_footprint(heap->msp));
     return ptr;
 }
 
@@ -923,41 +996,14 @@ size_t dvmHeapSourceFreeList(size_t numPtrs, void **ptrs)
         // mspace_free, but on the other heaps we only do some
         // accounting.
         if (heap == gHs->heaps) {
-            // mspace_merge_objects takes two allocated objects, and
-            // if the second immediately follows the first, will merge
-            // them, returning a larger object occupying the same
-            // memory. This is a local operation, and doesn't require
-            // dlmalloc to manipulate any freelists. It's pretty
-            // inexpensive compared to free().
-
-            // ptrs is an array of objects all in memory order, and if
-            // client code has been allocating lots of short-lived
-            // objects, this is likely to contain runs of objects all
-            // now garbage, and thus highly amenable to this optimization.
-
-            // Unroll the 0th iteration around the loop below,
-            // countFree ptrs[0] and initializing merged.
-            assert(ptrs[0] != NULL);
-            assert(ptr2heap(gHs, ptrs[0]) == heap);
-            countFree(heap, ptrs[0], &numBytes);
-            void *merged = ptrs[0];
-            for (size_t i = 1; i < numPtrs; i++) {
-                assert(merged != NULL);
+            // Count freed objects.
+            for (size_t i = 0; i < numPtrs; i++) {
                 assert(ptrs[i] != NULL);
-                assert((intptr_t)merged < (intptr_t)ptrs[i]);
                 assert(ptr2heap(gHs, ptrs[i]) == heap);
                 countFree(heap, ptrs[i], &numBytes);
-                // Try to merge. If it works, merged now includes the
-                // memory of ptrs[i]. If it doesn't, free merged, and
-                // see if ptrs[i] starts a new run of adjacent
-                // objects to merge.
-                if (mspace_merge_objects(msp, merged, ptrs[i]) == NULL) {
-                    mspace_free(msp, merged);
-                    merged = ptrs[i];
-                }
             }
-            assert(merged != NULL);
-            mspace_free(msp, merged);
+            // Bulk free ptrs.
+            mspace_bulk_free(msp, ptrs, numPtrs);
         } else {
             // This is not an 'active heap'. Only do the accounting.
             for (size_t i = 0; i < numPtrs; i++) {
@@ -977,7 +1023,7 @@ bool dvmHeapSourceContainsAddress(const void *ptr)
 {
     HS_BOILERPLATE();
 
-    return (dvmHeapBitmapCoversAddress(&gHs->liveBits, ptr));
+    return (dvmHeapSourceGetBase() <= ptr) && (ptr <= dvmHeapSourceGetLimit());
 }
 
 /*
@@ -1024,7 +1070,7 @@ size_t dvmHeapSourceChunkSize(const void *ptr)
 
     Heap* heap = ptr2heap(gHs, ptr);
     if (heap != NULL) {
-        return mspace_usable_size(heap->msp, ptr);
+        return mspace_usable_size(ptr);
     }
     return 0;
 }
@@ -1122,13 +1168,13 @@ static void setSoftLimit(HeapSource *hs, size_t softLimit)
     if (softLimit < currentHeapSize) {
         /* Don't let the heap grow any more, and impose a soft limit.
          */
-        mspace_set_max_allowed_footprint(msp, currentHeapSize);
+        mspace_set_footprint_limit(msp, currentHeapSize);
         hs->softLimit = softLimit;
     } else {
         /* Let the heap grow to the requested max, and remove any
          * soft limit, if set.
          */
-        mspace_set_max_allowed_footprint(msp, softLimit);
+        mspace_set_footprint_limit(msp, softLimit);
         hs->softLimit = SIZE_MAX;
     }
 }
@@ -1217,23 +1263,21 @@ void dvmSetTargetHeapUtilization(float newTarget)
 /*
  * Given the size of a live set, returns the ideal heap size given
  * the current target utilization and MIN/MAX values.
- *
- * targetUtilization is in the range 1..HEAP_UTILIZATION_MAX.
  */
-static size_t getUtilizationTarget(size_t liveSize, size_t targetUtilization)
+static size_t getUtilizationTarget(const HeapSource* hs, size_t liveSize)
 {
     /* Use the current target utilization ratio to determine the
      * ideal heap size based on the size of the live set.
      */
-    size_t targetSize = (liveSize / targetUtilization) * HEAP_UTILIZATION_MAX;
+    size_t targetSize = (liveSize / hs->targetUtilization) * HEAP_UTILIZATION_MAX;
 
     /* Cap the amount of free space, though, so we don't end up
      * with, e.g., 8MB of free space when the live set size hits 8MB.
      */
-    if (targetSize > liveSize + HEAP_IDEAL_FREE) {
-        targetSize = liveSize + HEAP_IDEAL_FREE;
-    } else if (targetSize < liveSize + HEAP_MIN_FREE) {
-        targetSize = liveSize + HEAP_MIN_FREE;
+    if (targetSize > liveSize + hs->maxFree) {
+        targetSize = liveSize + hs->maxFree;
+    } else if (targetSize < liveSize + hs->minFree) {
+        targetSize = liveSize + hs->minFree;
     }
     return targetSize;
 }
@@ -1260,8 +1304,7 @@ void dvmHeapSourceGrowForUtilization()
      * the current heap.
      */
     size_t currentHeapUsed = heap->bytesAllocated;
-    size_t targetHeapSize =
-            getUtilizationTarget(currentHeapUsed, hs->targetUtilization);
+    size_t targetHeapSize = getUtilizationTarget(hs, currentHeapUsed);
 
     /* The ideal size includes the old heaps; add overhead so that
      * it can be immediately subtracted again in setIdealFootprint().
@@ -1284,17 +1327,22 @@ void dvmHeapSourceGrowForUtilization()
  * Return free pages to the system.
  * TODO: move this somewhere else, especially the native heap part.
  */
-static void releasePagesInRange(void *start, void *end, void *nbytes)
+static void releasePagesInRange(void* start, void* end, size_t used_bytes,
+                                void* releasedBytes)
 {
-    /* Linux requires that the madvise() start address is page-aligned.
-    * We also align the end address.
-    */
-    start = (void *)ALIGN_UP_TO_PAGE_SIZE(start);
-    end = (void *)((size_t)end & ~(SYSTEM_PAGE_SIZE - 1));
-    if (start < end) {
-        size_t length = (char *)end - (char *)start;
-        madvise(start, length, MADV_DONTNEED);
-        *(size_t *)nbytes += length;
+    if (used_bytes == 0) {
+        /*
+         * We have a range of memory we can try to madvise()
+         * back. Linux requires that the madvise() start address is
+         * page-aligned.  We also align the end address.
+         */
+        start = (void *)ALIGN_UP_TO_PAGE_SIZE(start);
+        end = (void *)((size_t)end & ~(SYSTEM_PAGE_SIZE - 1));
+        if (end > start) {
+            size_t length = (char *)end - (char *)start;
+            madvise(start, length, MADV_DONTNEED);
+            *(size_t *)releasedBytes += length;
+        }
     }
 }
 
@@ -1310,20 +1358,17 @@ static void trimHeaps()
     for (size_t i = 0; i < hs->numHeaps; i++) {
         Heap *heap = &hs->heaps[i];
 
-        /* Return the wilderness chunk to the system.
-         */
+        /* Return the wilderness chunk to the system. */
         mspace_trim(heap->msp, 0);
 
-        /* Return any whole free pages to the system.
-         */
-        mspace_walk_free_pages(heap->msp, releasePagesInRange, &heapBytes);
+        /* Return any whole free pages to the system. */
+        mspace_inspect_all(heap->msp, releasePagesInRange, &heapBytes);
     }
 
-    /* Same for the native heap.
-     */
+    /* Same for the native heap. */
     dlmalloc_trim(0);
     size_t nativeBytes = 0;
-    dlmalloc_walk_free_pages(releasePagesInRange, &nativeBytes);
+    dlmalloc_inspect_all(releasePagesInRange, &nativeBytes);
 
     LOGD_HEAP("madvised %zd (GC) + %zd (native) = %zd total bytes",
             heapBytes, nativeBytes, heapBytes + nativeBytes);
@@ -1333,9 +1378,8 @@ static void trimHeaps()
  * Walks over the heap source and passes every allocated and
  * free chunk to the callback.
  */
-void dvmHeapSourceWalk(void(*callback)(const void *chunkptr, size_t chunklen,
-                                       const void *userptr, size_t userlen,
-                                       void *arg),
+void dvmHeapSourceWalk(void(*callback)(void* start, void* end,
+                                       size_t used_bytes, void* arg),
                        void *arg)
 {
     HS_BOILERPLATE();
@@ -1345,7 +1389,8 @@ void dvmHeapSourceWalk(void(*callback)(const void *chunkptr, size_t chunklen,
 //TODO: do this in address order
     HeapSource *hs = gHs;
     for (size_t i = hs->numHeaps; i > 0; --i) {
-        mspace_walk_heap(hs->heaps[i-1].msp, callback, arg);
+        mspace_inspect_all(hs->heaps[i-1].msp, callback, arg);
+        callback(NULL, NULL, 0, arg);  // Indicate end of a heap.
     }
 }
 
