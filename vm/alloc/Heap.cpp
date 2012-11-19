@@ -31,11 +31,6 @@
 #include <limits.h>
 #include <errno.h>
 
-#ifdef LOG_NDDEBUG
-#undef LOG_NDDEBUG
-#define LOG_NDDEBUG 0
-#endif
-
 static const GcSpec kGcForMallocSpec = {
     true,  /* isPartial */
     false,  /* isConcurrent */

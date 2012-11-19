@@ -39,9 +39,8 @@ static void trimHeaps();
 
 #define HEAP_UTILIZATION_MAX        1024
 #define DEFAULT_HEAP_UTILIZATION    512     // Range 1..HEAP_UTILIZATION_MAX
-#define HEAP_IDEAL_FREE_DEFAULT     (7.2 * 1024 * 1024)
-static unsigned int heapIdeaFree = HEAP_IDEAL_FREE_DEFAULT;
-#define HEAP_MIN_FREE               ((heapIdeaFree) / 4)
+#define HEAP_IDEAL_FREE             (2 * 1024 * 1024)
+#define HEAP_MIN_FREE               (HEAP_IDEAL_FREE / 4)
 
 /* How long to wait after a GC before performing a heap trim
  * operation to reclaim unused pages.
@@ -51,13 +50,12 @@ static unsigned int heapIdeaFree = HEAP_IDEAL_FREE_DEFAULT;
 /* Start a concurrent collection when free memory falls under this
  * many bytes.
  */
-#define CONCURRENT_START_DEFAULT    (128 << 10)
-static unsigned int concurrentStart= CONCURRENT_START_DEFAULT;
+#define CONCURRENT_START (128 << 10)
 
 /* The next GC will not be concurrent when free memory after a GC is
  * under this many bytes.
  */
-#define CONCURRENT_MIN_FREE ((concurrentStart) + (128 << 10))
+#define CONCURRENT_MIN_FREE (CONCURRENT_START + (128 << 10))
 
 #define HS_BOILERPLATE() \
     do { \
@@ -373,12 +371,11 @@ static bool addNewHeap(HeapSource *hs)
         return false;
     }
 
-    size_t startSize = gDvm.heapStartingSize;
     heap.maximumSize = hs->growthLimit - overhead;
-    heap.concurrentStartBytes = startSize - concurrentStart;
+    heap.concurrentStartBytes = HEAP_MIN_FREE - CONCURRENT_START;
     heap.base = base;
     heap.limit = heap.base + heap.maximumSize;
-    heap.msp = createMspace(base, startSize * 2, hs->maximumSize - overhead);
+    heap.msp = createMspace(base, HEAP_MIN_FREE, hs->maximumSize - overhead);
     if (heap.msp == NULL) {
         return false;
     }
@@ -594,12 +591,6 @@ fail:
 
 bool dvmHeapSourceStartupAfterZygote()
 {
-    //For each new application forked, we need to reset softLimit and
-    //concurrentStartBytes to be the correct expected value, not the one
-    //inherit from Zygote
-    HeapSource *hs = gHs;
-    hs->softLimit=SIZE_MAX;
-    hs->heaps[0].concurrentStartBytes = mspace_footprint(hs->heaps[0].msp) - concurrentStart;
     return gDvm.concurrentMarkSweep ? gcDaemonStartup() : true;
 }
 
@@ -1182,10 +1173,7 @@ static void snapIdealFootprint()
 {
     HS_BOILERPLATE();
 
-    /* Give IDEAL_FREE extra amount of room even for the
-     * snapIdealFootprint case
-     */
-    setIdealFootprint(getSoftFootprint(true) + heapIdeaFree);
+    setIdealFootprint(getSoftFootprint(true));
 }
 
 /*
@@ -1227,49 +1215,6 @@ void dvmSetTargetHeapUtilization(float newTarget)
 }
 
 /*
- * Sets heapIdeaFree
- */
-void dvmSetTargetHeapIdealFree(size_t size)
-{
-
-    HS_BOILERPLATE();
-    heapIdeaFree = size;
-    LOGD_HEAP("dvmSetTargetHeapIdealFree %d", size );
-}
-
-/*
- * Gets heapIdeaFree
- */
-int dvmGetTargetHeapIdealFree()
-{
-
-    HS_BOILERPLATE();
-    LOGD_HEAP("dvmGetTargetHeapIdealFree %d", heapIdeaFree );
-    return heapIdeaFree;
-}
-
-/*
- * Sets concurrentStart
- */
-void dvmSetTargetHeapConcurrentStart(size_t size)
-{
-
-    HS_BOILERPLATE();
-    concurrentStart = size;
-    LOGD_HEAP("dvmSetTargetHeapConcurrentStart %d", size );
-}
-
-/*
- * Gets concurrentStart
- */
-int dvmGetTargetHeapConcurrentStart()
-{
-
-    HS_BOILERPLATE();
-    LOGD_HEAP("dvmGetTargetHeapConcurrentStart %d", concurrentStart );
-    return concurrentStart;
-}
-/*
  * Given the size of a live set, returns the ideal heap size given
  * the current target utilization and MIN/MAX values.
  *
@@ -1285,15 +1230,13 @@ static size_t getUtilizationTarget(size_t liveSize, size_t targetUtilization)
     /* Cap the amount of free space, though, so we don't end up
      * with, e.g., 8MB of free space when the live set size hits 8MB.
      */
-    if (targetSize > liveSize + heapIdeaFree) {
-        targetSize = liveSize + heapIdeaFree;
+    if (targetSize > liveSize + HEAP_IDEAL_FREE) {
+        targetSize = liveSize + HEAP_IDEAL_FREE;
     } else if (targetSize < liveSize + HEAP_MIN_FREE) {
         targetSize = liveSize + HEAP_MIN_FREE;
     }
     return targetSize;
 }
-
-#define min(a, b) ((a)>(b)?(b):(a))
 
 /*
  * Given the current contents of the active heap, increase the allowed
@@ -1333,10 +1276,7 @@ void dvmHeapSourceGrowForUtilization()
         /* Not enough free memory to allow a concurrent GC. */
         heap->concurrentStartBytes = SIZE_MAX;
     } else {
-        //For small footprint, we keep the min percentage to start
-        //concurrent GC; for big footprint, we keep the absolute value
-        //of free to start concurrent GC
-        heap->concurrentStartBytes = freeBytes - min(freeBytes * (float)(0.2), concurrentStart);
+        heap->concurrentStartBytes = freeBytes - CONCURRENT_START;
     }
 }
 
