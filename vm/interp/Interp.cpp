@@ -1926,7 +1926,6 @@ void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
 #endif
     self->debugIsMethodEntry = true;
 #if defined(WITH_JIT)
-    dvmJitCalleeSave(calleeSave);
     /* Initialize the state to kJitNot */
     self->jitState = kJitNot;
 #endif
