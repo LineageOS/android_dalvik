@@ -117,6 +117,26 @@ float dvmGetTargetHeapUtilization(void);
 void dvmSetTargetHeapUtilization(float newTarget);
 
 /*
+ * Sets HEAP_MIN_FREE
+ */
+void dvmSetTargetHeapMinFree(size_t size);
+
+/*
+ * Gets HEAP_MIN_FREE
+ */
+int dvmGetTargetHeapMinFree();
+
+/*
+ * Sets CONCURRENT_START
+ */
+void dvmSetTargetHeapConcurrentStart(size_t size);
+
+/*
+ * Gets CONCURRENT_START
+ */
+int dvmGetTargetHeapConcurrentStart();
+
+/*
  * Initiate garbage collection.
  *
  * This usually happens automatically, but can also be caused by
