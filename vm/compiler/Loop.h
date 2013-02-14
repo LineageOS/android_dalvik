@@ -20,6 +20,12 @@
 #include "Dalvik.h"
 #include "CompilerInternals.h"
 
+/*
+ * The minimum number of instructions required in a loop,
+ * to trigger generation of suspend check code.
+ */
+#define LOOP_SUPPRESS_SUSPEND_THRESHOLD 10
+
 typedef struct LoopAnalysis {
     BitVector *isIndVarV;               // length == numSSAReg
     GrowableList *ivList;               // induction variables
@@ -33,6 +39,7 @@ typedef struct LoopAnalysis {
     LIR *branchToPCR;                   // branch over to the PCR cell
     bool bodyIsClean;                   // loop body cannot throw any exceptions
     bool branchesAdded;                 // Body and PCR branch added to LIR output
+    bool suppressSuspend;               // loop body should suppress suspend check
 } LoopAnalysis;
 
 bool dvmCompilerFilterLoopBlocks(CompilationUnit *cUnit);
