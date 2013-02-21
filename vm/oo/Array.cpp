@@ -60,6 +60,8 @@ static ArrayObject* allocArray(ClassObject* arrayClass, size_t length,
         DVM_OBJECT_INIT(newArray, arrayClass);
         newArray->length = length;
         dvmTrackAllocation(arrayClass, totalSize);
+        // Add barrier to force all metadata writes to main memory to complete
+        ANDROID_MEMBAR_FULL();
     }
     return newArray;
 }
@@ -481,6 +483,9 @@ static ClassObject* createArrayClass(const char* descriptor, Object* loader)
         descriptor, newClass->classLoader,
         newClass->accessFlags >> 16,
         newClass->accessFlags & JAVA_FLAGS_MASK);
+
+    // Add barrier to force all metadata writes to main memory to complete
+    ANDROID_MEMBAR_FULL();
 
     return newClass;
 }
