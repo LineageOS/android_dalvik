@@ -119,7 +119,7 @@ struct Monitor {
     int         lockCount;      /* owner's recursive lock depth */
     Object*     obj;            /* what object are we part of [debug only] */
 
-    Thread*     waitSet;	/* threads currently waiting on this monitor */
+    Thread*     waitSet;        /* threads currently waiting on this monitor */
 
     pthread_mutex_t lock;
 
@@ -480,7 +480,7 @@ static void lockMonitor(Thread* self, Monitor* mon)
             waitEnd = dvmGetRelativeTimeUsec();
         }
         dvmChangeStatus(self, oldStatus);
-        if (waitThreshold) {
+        if (waitThreshold && self->curFrame != NULL) {
             waitMs = (waitEnd - waitStart) / 1000;
             if (waitMs >= waitThreshold) {
                 samplePercent = 100;
