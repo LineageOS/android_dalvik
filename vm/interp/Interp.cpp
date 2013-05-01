@@ -1687,6 +1687,9 @@ void dvmInitializeInterpBreak(Thread* thread)
     if (gDvm.debuggerActive) {
         dvmEnableSubMode(thread, kSubModeDebuggerActive);
     }
+#if defined(WITH_JIT)
+    dvmJitUpdateThreadStateSingle(thread);
+#endif
 #if 0
     // Debugging stress mode - force checkBefore
     dvmEnableSubMode(thread, kSubModeCheckAlways);
