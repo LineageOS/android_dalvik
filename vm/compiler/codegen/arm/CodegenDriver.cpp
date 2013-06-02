@@ -398,6 +398,149 @@ static void genIPut(CompilationUnit *cUnit, MIR *mir, OpSize size,
     }
 }
 
+
+/*
+ * Generate array load
+ */
+static void genArrayGet(CompilationUnit *cUnit, MIR *mir, OpSize size,
+                        RegLocation rlArray, RegLocation rlIndex,
+                        RegLocation rlDest, int scale)
+{
+    RegisterClass regClass = dvmCompilerRegClassBySize(size);
+    int lenOffset = OFFSETOF_MEMBER(ArrayObject, length);
+    int dataOffset = OFFSETOF_MEMBER(ArrayObject, contents);
+    RegLocation rlResult;
+    rlArray = loadValue(cUnit, rlArray, kCoreReg);
+    rlIndex = loadValue(cUnit, rlIndex, kCoreReg);
+    int regPtr;
+
+    /* null object? */
+    ArmLIR * pcrLabel = NULL;
+
+    if (!(mir->OptimizationFlags & MIR_IGNORE_NULL_CHECK)) {
+        pcrLabel = genNullCheck(cUnit, rlArray.sRegLow,
+                                rlArray.lowReg, mir->offset, NULL);
+    }
+
+    regPtr = dvmCompilerAllocTemp(cUnit);
+
+    if (!(mir->OptimizationFlags & MIR_IGNORE_RANGE_CHECK)) {
+        int regLen = dvmCompilerAllocTemp(cUnit);
+        /* Get len */
+        loadWordDisp(cUnit, rlArray.lowReg, lenOffset, regLen);
+        /* regPtr -> array data */
+        opRegRegImm(cUnit, kOpAdd, regPtr, rlArray.lowReg, dataOffset);
+        genBoundsCheck(cUnit, rlIndex.lowReg, regLen, mir->offset,
+                       pcrLabel);
+        dvmCompilerFreeTemp(cUnit, regLen);
+    } else {
+        /* regPtr -> array data */
+        opRegRegImm(cUnit, kOpAdd, regPtr, rlArray.lowReg, dataOffset);
+    }
+    if ((size == kLong) || (size == kDouble)) {
+        if (scale) {
+            int rNewIndex = dvmCompilerAllocTemp(cUnit);
+            opRegRegImm(cUnit, kOpLsl, rNewIndex, rlIndex.lowReg, scale);
+            opRegReg(cUnit, kOpAdd, regPtr, rNewIndex);
+            dvmCompilerFreeTemp(cUnit, rNewIndex);
+        } else {
+            opRegReg(cUnit, kOpAdd, regPtr, rlIndex.lowReg);
+        }
+        rlResult = dvmCompilerEvalLoc(cUnit, rlDest, regClass, true);
+
+        HEAP_ACCESS_SHADOW(true);
+        loadPair(cUnit, regPtr, rlResult.lowReg, rlResult.highReg);
+        HEAP_ACCESS_SHADOW(false);
+
+        dvmCompilerFreeTemp(cUnit, regPtr);
+        storeValueWide(cUnit, rlDest, rlResult);
+    } else {
+        rlResult = dvmCompilerEvalLoc(cUnit, rlDest, regClass, true);
+
+        HEAP_ACCESS_SHADOW(true);
+        loadBaseIndexed(cUnit, regPtr, rlIndex.lowReg, rlResult.lowReg,
+                        scale, size);
+        HEAP_ACCESS_SHADOW(false);
+
+        dvmCompilerFreeTemp(cUnit, regPtr);
+        storeValue(cUnit, rlDest, rlResult);
+    }
+}
+
+/*
+ * Generate array store
+ *
+ */
+static void genArrayPut(CompilationUnit *cUnit, MIR *mir, OpSize size,
+                        RegLocation rlArray, RegLocation rlIndex,
+                        RegLocation rlSrc, int scale)
+{
+    RegisterClass regClass = dvmCompilerRegClassBySize(size);
+    int lenOffset = OFFSETOF_MEMBER(ArrayObject, length);
+    int dataOffset = OFFSETOF_MEMBER(ArrayObject, contents);
+
+    int regPtr;
+    rlArray = loadValue(cUnit, rlArray, kCoreReg);
+    rlIndex = loadValue(cUnit, rlIndex, kCoreReg);
+
+    if (dvmCompilerIsTemp(cUnit, rlArray.lowReg)) {
+        dvmCompilerClobber(cUnit, rlArray.lowReg);
+        regPtr = rlArray.lowReg;
+    } else {
+        regPtr = dvmCompilerAllocTemp(cUnit);
+        genRegCopy(cUnit, regPtr, rlArray.lowReg);
+    }
+
+    /* null object? */
+    ArmLIR * pcrLabel = NULL;
+
+    if (!(mir->OptimizationFlags & MIR_IGNORE_NULL_CHECK)) {
+        pcrLabel = genNullCheck(cUnit, rlArray.sRegLow, rlArray.lowReg,
+                                mir->offset, NULL);
+    }
+
+    if (!(mir->OptimizationFlags & MIR_IGNORE_RANGE_CHECK)) {
+        int regLen = dvmCompilerAllocTemp(cUnit);
+        //NOTE: max live temps(4) here.
+        /* Get len */
+        loadWordDisp(cUnit, rlArray.lowReg, lenOffset, regLen);
+        /* regPtr -> array data */
+        opRegImm(cUnit, kOpAdd, regPtr, dataOffset);
+        genBoundsCheck(cUnit, rlIndex.lowReg, regLen, mir->offset,
+                       pcrLabel);
+        dvmCompilerFreeTemp(cUnit, regLen);
+    } else {
+        /* regPtr -> array data */
+        opRegImm(cUnit, kOpAdd, regPtr, dataOffset);
+    }
+    /* at this point, regPtr points to array, 2 live temps */
+    if ((size == kLong) || (size == kDouble)) {
+        //TODO: need specific wide routine that can handle fp regs
+        if (scale) {
+            int rNewIndex = dvmCompilerAllocTemp(cUnit);
+            opRegRegImm(cUnit, kOpLsl, rNewIndex, rlIndex.lowReg, scale);
+            opRegReg(cUnit, kOpAdd, regPtr, rNewIndex);
+            dvmCompilerFreeTemp(cUnit, rNewIndex);
+        } else {
+            opRegReg(cUnit, kOpAdd, regPtr, rlIndex.lowReg);
+        }
+        rlSrc = loadValueWide(cUnit, rlSrc, regClass);
+
+        HEAP_ACCESS_SHADOW(true);
+        storePair(cUnit, regPtr, rlSrc.lowReg, rlSrc.highReg);
+        HEAP_ACCESS_SHADOW(false);
+
+        dvmCompilerFreeTemp(cUnit, regPtr);
+    } else {
+        rlSrc = loadValue(cUnit, rlSrc, regClass);
+
+        HEAP_ACCESS_SHADOW(true);
+        storeBaseIndexed(cUnit, regPtr, rlIndex.lowReg, rlSrc.lowReg,
+                         scale, size);
+        HEAP_ACCESS_SHADOW(false);
+    }
+}
+
 /*
  * Generate array object store
  * Must use explicit register allocation here because of
@@ -1318,8 +1461,8 @@ static bool handleFmt10t_Fmt20t_Fmt30t(CompilationUnit *cUnit, MIR *mir,
     /* backward branch? */
     bool backwardBranch = (bb->taken->startOffset <= mir->offset);
 
-    if (backwardBranch && (gDvmJit.genSuspendPoll ||
-        (cUnit->jitMode == kJitLoop && !cUnit->loopAnalysis->suppressSuspend))) {
+    if (backwardBranch &&
+        (gDvmJit.genSuspendPoll || cUnit->jitMode == kJitLoop)) {
         genSuspendPoll(cUnit, mir);
     }
 
@@ -1962,14 +2105,17 @@ static bool handleFmt21t(CompilationUnit *cUnit, MIR *mir, BasicBlock *bb,
     /* backward branch? */
     bool backwardBranch = (bb->taken->startOffset <= mir->offset);
 
-    if (backwardBranch && (gDvmJit.genSuspendPoll ||
-        (cUnit->jitMode == kJitLoop && !cUnit->loopAnalysis->suppressSuspend))) {
+    if (backwardBranch &&
+        (gDvmJit.genSuspendPoll || cUnit->jitMode == kJitLoop)) {
         genSuspendPoll(cUnit, mir);
     }
 
     RegLocation rlSrc = dvmCompilerGetSrc(cUnit, mir, 0);
     rlSrc = loadValue(cUnit, rlSrc, kCoreReg);
 
+    opRegImm(cUnit, kOpCmp, rlSrc.lowReg, 0);
+
+//TUNING: break this out to allow use of Thumb2 CB[N]Z
     switch (dalvikOpcode) {
         case OP_IF_EQZ:
             cond = kArmCondEq;
@@ -1994,8 +2140,7 @@ static bool handleFmt21t(CompilationUnit *cUnit, MIR *mir, BasicBlock *bb,
             ALOGE("Unexpected opcode (%d) for Fmt21t", dalvikOpcode);
             dvmCompilerAbort(cUnit);
     }
-    ArmLIR* branch = genCmpImmBranch(cUnit, cond, rlSrc.lowReg, 0);
-    branch->generic.target = (LIR*)&labelList[bb->taken->id];
+    genConditionalBranch(cUnit, cond, &labelList[bb->taken->id]);
     /* This mostly likely will be optimized away in a later phase */
     genUnconditionalBranch(cUnit, &labelList[bb->fallThrough->id]);
     return false;
@@ -2118,7 +2263,10 @@ static bool handleEasyMultiply(CompilationUnit *cUnit,
     } else {
         // Reverse subtract: (src << (shift + 1)) - src.
         assert(powerOfTwoMinusOne);
-        genMultiplyByShiftAndReverseSubtract(cUnit, rlSrc, rlResult, lowestSetBit(lit + 1));
+        // TODO: rsb dst, src, src lsl#lowestSetBit(lit + 1)
+        int tReg = dvmCompilerAllocTemp(cUnit);
+        opRegRegImm(cUnit, kOpLsl, tReg, rlSrc.lowReg, lowestSetBit(lit + 1));
+        opRegRegReg(cUnit, kOpSub, rlResult.lowReg, tReg, rlSrc.lowReg);
     }
     storeValue(cUnit, rlDest, rlResult);
     return true;
@@ -2462,8 +2610,8 @@ static bool handleFmt22t(CompilationUnit *cUnit, MIR *mir, BasicBlock *bb,
     /* backward branch? */
     bool backwardBranch = (bb->taken->startOffset <= mir->offset);
 
-    if (backwardBranch && (gDvmJit.genSuspendPoll ||
-        (cUnit->jitMode == kJitLoop && !cUnit->loopAnalysis->suppressSuspend))) {
+    if (backwardBranch &&
+        (gDvmJit.genSuspendPoll || cUnit->jitMode == kJitLoop)) {
         genSuspendPoll(cUnit, mir);
     }
 
@@ -3699,7 +3847,7 @@ static void handlePCReconstruction(CompilationUnit *cUnit,
      * We should never reach here through fall-through code, so insert
      * a bomb to signal troubles immediately.
      */
-    if ((numElems) || (cUnit->jitMode == kJitLoop)) {
+    if (numElems) {
         newLIR0(cUnit, kThumbUndefined);
     }
 
@@ -4354,7 +4502,6 @@ void dvmCompilerMIR2LIR(CompilationUnit *cUnit)
                                  (LIR *) cUnit->loopAnalysis->branchToBody);
             dvmCompilerAppendLIR(cUnit,
                                  (LIR *) cUnit->loopAnalysis->branchToPCR);
-            cUnit->loopAnalysis->branchesAdded = true;
         }
 
         if (headLIR) {
