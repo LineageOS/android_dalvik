@@ -259,7 +259,7 @@ static void genMonitorEnter(CompilationUnit *cUnit, MIR *mir)
             LW_LOCK_OWNER_SHIFT - 1);
     hopBranch = newLIR2(cUnit, kThumb2Cbnz, r2, 0);
     newLIR4(cUnit, kThumb2Strex, r2, r3, r1, offsetof(Object, lock) >> 2);
-    dvmCompilerGenMemBarrier(cUnit, kSY);
+    dvmCompilerGenMemBarrier(cUnit, kISH);
     branch = newLIR2(cUnit, kThumb2Cbz, r2, 0);
 
     hopTarget = newLIR0(cUnit, kArmPseudoTargetLabel);
@@ -322,7 +322,7 @@ static void genMonitorExit(CompilationUnit *cUnit, MIR *mir)
     UNSET_CCODE;
 #endif
     hopBranch = opCondBranch(cUnit, kArmCondNe);
-    dvmCompilerGenMemBarrier(cUnit, kSY);
+    dvmCompilerGenMemBarrier(cUnit, kISH);
     storeWordDisp(cUnit, r1, offsetof(Object, lock), r7);
     branch = opNone(cUnit, kOpUncondBr);
 
