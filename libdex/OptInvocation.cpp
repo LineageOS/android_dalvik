@@ -116,7 +116,7 @@ char* dexOptGenerateCacheFileName(const char* fileName, const char* subFileName)
         systemRoot = "/system";
 
     if (dexRoot == NULL)
-        dexRoot = "/data";
+        dexRoot = dataRoot;
 
     /* Cache anything stored on /system in cacheRoot, everything else in dataRoot */
     if (!strncmp(absoluteFile, systemRoot, strlen(systemRoot))) {
