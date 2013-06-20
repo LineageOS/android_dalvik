@@ -495,6 +495,7 @@ void dexDecodeInstruction(const u2* insns, DecodedInstruction* pDec)
 
     pDec->opcode = opcode;
     pDec->indexType = dexGetIndexTypeFromOpcode(opcode);
+    pDec->extraData = NULL;
 
     switch (format) {
     case kFmt10x:       // op
