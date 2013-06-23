@@ -21,7 +21,7 @@
 #include "native/InternalNativePriv.h"
 
 #include <signal.h>
-#if (__GNUC__ == 4 && __GNUC_MINOR__ == 7)
+#if (__GNUC__ == 4 && (__GNUC_MINOR__ == 7 || __GNUC_MINOR__ == 8))
 #include <sys/resource.h>
 #endif
 #include <sys/types.h>
