@@ -62,6 +62,10 @@
  * TODO: use __builtin_prefetch
  * TODO: write an ARM-optimized version
  */
+#if defined(HAVE_HALFWORD_ATOMIC_MEMMOVE)
+#define move16 memmove
+#define move32 memmove
+#else
 static void memmove_words(void* dest, const void* src, size_t n) {
     assert((((uintptr_t) dest | (uintptr_t) src | n) & 0x01) == 0);
 
@@ -177,6 +181,7 @@ static void memmove_words(void* dest, const void* src, size_t n) {
 
 #define move16 memmove_words
 #define move32 memmove_words
+#endif
 
 /*
  * public static void arraycopy(Object src, int srcPos, Object dest,
