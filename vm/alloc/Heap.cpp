@@ -31,6 +31,14 @@
 #include <limits.h>
 #include <errno.h>
 
+#include <cutils/properties.h>
+static int debugalloc()
+{
+    char value[PROPERTY_VALUE_MAX];
+    property_get("dalvik.vm.debug.alloc", value, "1");
+    return atoi(value);
+}
+
 static const GcSpec kGcForMallocSpec = {
     true,  /* isPartial */
     false,  /* isConcurrent */
@@ -227,6 +235,7 @@ static void *tryMalloc(size_t size)
 //TODO: may want to grow a little bit more so that the amount of free
 //      space is equal to the old free space + the utilization slop for
 //      the new allocation.
+        if ((debugalloc())
         LOGI_HEAP("Grow heap (frag case) to "
                 "%zu.%03zuMB for %zu-byte allocation",
                 FRACTIONAL_MB(newHeapSize), size);
@@ -643,6 +652,7 @@ void dvmCollectGarbageInternal(const GcSpec* spec)
         u4 markSweepTime = dirtyEnd - rootStart;
         u4 gcTime = gcEnd - rootStart;
         bool isSmall = numBytesFreed > 0 && numBytesFreed < 1024;
+        if (debugalloc())
         ALOGD("%s freed %s%zdK, %d%% free %zdK/%zdK, paused %ums, total %ums",
              spec->reason,
              isSmall ? "<" : "",
@@ -655,6 +665,7 @@ void dvmCollectGarbageInternal(const GcSpec* spec)
         u4 dirtyTime = dirtyEnd - dirtyStart;
         u4 gcTime = gcEnd - rootStart;
         bool isSmall = numBytesFreed > 0 && numBytesFreed < 1024;
+        if (debugalloc())
         ALOGD("%s freed %s%zdK, %d%% free %zdK/%zdK, paused %ums+%ums, total %ums",
              spec->reason,
              isSmall ? "<" : "",
