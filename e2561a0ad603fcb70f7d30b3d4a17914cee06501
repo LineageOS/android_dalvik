@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "bab921fb_9b02cf6e",
+        "filename": "vm/alloc/Heap.cpp",
+        "patchSetId": 3
+      },
+      "lineNbr": 39,
+      "author": {
+        "id": 2195
+      },
+      "writtenOn": "2013-07-20T20:46:55Z",
+      "side": 1,
+      "message": "It would be better to default to off, so that the default behavior remains unchanged.",
+      "revId": "e2561a0ad603fcb70f7d30b3d4a17914cee06501",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
