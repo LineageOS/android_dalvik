@@ -1675,40 +1675,12 @@ static bool initZygote()
         return -1;
     }
 
-    // Mark ANDROID_STORAGE (e.g., /storage) as being a slave so that changes
-    // from default namespace only flow into our children.  Notes:
-    // 1. ANDROID_STORAGE must already serve as a mountpoint, e.g., for a tmpfs
-    //    volume, as only mountpoints may be marked and rootfs cannot be bind
-    //    mounted.
-    // 2. EMULATED_STORAGE_TARGET (e.g., /storage/emulated), if used, must be
-    //    path-prefixed by ANDROID_STORAGE.
-    // 3. Multi-user sandbox mounts must be made under ANDROID_STORAGE to
-    //    remain hidden from other users.
-    // 4. Dalvik-based apps may mount anywhere, except under ANDROID_STORAGE,
-    //    to provide a system-wide shared mount between apps and users.
-    const char* storage_base = getenv("ANDROID_STORAGE");
-    if (storage_base != NULL) {
-        if (mount(NULL, storage_base, NULL, (MS_SLAVE | MS_REC), NULL) == 0) {
-            // ANDROID_STORAGE successfully marked as slave, leave the rest of the
-            // filesystem hierarchy marked as shared.
-            goto mounted_slave;
-        } else {
-            // Warn only, init.rc is likely missing a tmpfs mount for ANDROID_STORAGE.
-            SLOGW("Failed to mount %s as MS_SLAVE: %s", storage_base, strerror(errno));
-        }
-    } else {
-        SLOGW("ANDROID_STORAGE environment variable undefined");
-    }
-
-    // Fallback: Mark rootfs as being a slave so that changes from default
-    // namespace only flow into our children.  All mounts under "/" will be
-    // hidden from other apps and users.
+    // Mark rootfs as being a slave so that changes from default
+    // namespace only flow into our children.
     if (mount("rootfs", "/", NULL, (MS_SLAVE | MS_REC), NULL) == -1) {
         SLOGE("Failed to mount() rootfs as MS_SLAVE: %s", strerror(errno));
         return -1;
     }
-
-mounted_slave:
 
     // Create a staging tmpfs that is shared by our children; they will
     // bind mount storage into their respective private namespaces, which
