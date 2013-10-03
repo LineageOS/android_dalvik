@@ -59,6 +59,7 @@ static ArrayObject* allocArray(ClassObject* arrayClass, size_t length,
     if (newArray != NULL) {
         DVM_OBJECT_INIT(newArray, arrayClass);
         newArray->length = length;
+        ANDROID_MEMBAR_STORE();
         dvmTrackAllocation(arrayClass, totalSize);
         // Add barrier to force all metadata writes to main memory to complete
         ANDROID_MEMBAR_FULL();
