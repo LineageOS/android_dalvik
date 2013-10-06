@@ -41,7 +41,7 @@
 static int debugalloc()
 {
     char value[PROPERTY_VALUE_MAX];
-    property_get("dalvik.vm.debug.alloc", value, "1");
+    property_get("dalvik.vm.debug.alloc", value, "0");
     return atoi(value);
 }
 
