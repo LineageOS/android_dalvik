@@ -45,6 +45,10 @@
 #include <sys/utsname.h>
 #include <sys/capability.h>
 
+#ifdef HAVE_ANDROID_OS
+#include <cutils/properties.h>
+#endif
+
 #if defined(HAVE_PRCTL)
 # include <sys/prctl.h>
 #endif
@@ -416,8 +420,15 @@ static void enableDebugFeatures(u4 debugFlags)
             ALOGE("could not set dumpable bit flag for pid %d: %s",
                  getpid(), strerror(errno));
         } else {
+            char prop_value[PROPERTY_VALUE_MAX];
+            property_get("persist.debug.trace",prop_value,"0");
             struct rlimit rl;
-            rl.rlim_cur = 0;
+            if(prop_value[0] == '1') {
+                ALOGE("setting RLIM to infinity for process %d",getpid());
+                rl.rlim_cur = RLIM_INFINITY;
+            } else {
+                rl.rlim_cur = 0;
+            }
             rl.rlim_max = RLIM_INFINITY;
             if (setrlimit(RLIMIT_CORE, &rl) < 0) {
                 ALOGE("could not disable core file generation for pid %d: %s",
