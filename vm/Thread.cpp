@@ -997,6 +997,7 @@ static void freeThread(Thread* thread)
 #if defined(WITH_SELF_VERIFICATION)
     dvmSelfVerificationShadowSpaceFree(thread);
 #endif
+    free(thread->stackTraceSample);
     free(thread);
 }
 
@@ -1281,6 +1282,7 @@ bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
             "thread has already been started");
         freeThread(newThread);
         dvmReleaseTrackedAlloc(vmThreadObj, NULL);
+        return false;
     }
 
     /*
@@ -3598,7 +3600,7 @@ void dvmNukeThread(Thread* thread)
     ALOGD("Sent, pausing to let debuggerd run");
     usleep(8 * 1000 * 1000);    // TODO: timed-wait until debuggerd finishes
 
-    /* ignore SIGSEGV so the eventual dmvAbort() doesn't notify debuggerd */
+    /* ignore SIGSEGV so the eventual dvmAbort() doesn't notify debuggerd */
     signal(SIGSEGV, SIG_IGN);
     ALOGD("Continuing");
 }

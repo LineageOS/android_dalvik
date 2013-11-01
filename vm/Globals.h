@@ -90,6 +90,7 @@ struct DvmGlobals {
     size_t      heapStartingSize;
     size_t      heapMaximumSize;
     size_t      heapGrowthLimit;
+    bool        lowMemoryMode;
     double      heapTargetUtilization;
     size_t      heapMinFree;
     size_t      heapMaxFree;
@@ -124,7 +125,6 @@ struct DvmGlobals {
     void        (*abortHook)(void);
     bool        (*isSensitiveThreadHook)(void);
 
-    int         jniGrefLimit;       // 0 means no limit
     char*       jniTrace;
     bool        reduceSignals;
     bool        noQuitHandler;
@@ -268,10 +268,11 @@ struct DvmGlobals {
     ClassObject* classJavaLangReflectMethod;
     ClassObject* classJavaLangReflectMethodArray;
     ClassObject* classJavaLangReflectProxy;
+    ClassObject* classJavaLangSystem;
     ClassObject* classJavaNioDirectByteBuffer;
-    ClassObject* classOrgApacheHarmonyLangAnnotationAnnotationFactory;
-    ClassObject* classOrgApacheHarmonyLangAnnotationAnnotationMember;
-    ClassObject* classOrgApacheHarmonyLangAnnotationAnnotationMemberArray;
+    ClassObject* classLibcoreReflectAnnotationFactory;
+    ClassObject* classLibcoreReflectAnnotationMember;
+    ClassObject* classLibcoreReflectAnnotationMemberArray;
     ClassObject* classOrgApacheHarmonyDalvikDdmcChunk;
     ClassObject* classOrgApacheHarmonyDalvikDdmcDdmServer;
     ClassObject* classJavaLangRefFinalizerReference;
@@ -407,6 +408,9 @@ struct DvmGlobals {
     /* field offsets - java.lang.reflect.Proxy */
     int         offJavaLangReflectProxy_h;
 
+    /* direct method pointer - java.lang.System.runFinalization */
+    Method*     methJavaLangSystem_runFinalization;
+
     /* field offsets - java.io.FileDescriptor */
     int         offJavaIoFileDescriptor_descriptor;
 
@@ -525,8 +529,6 @@ struct DvmGlobals {
     IndirectRefTable jniWeakGlobalRefTable;
     pthread_mutex_t jniGlobalRefLock;
     pthread_mutex_t jniWeakGlobalRefLock;
-    int         jniGlobalRefHiMark;
-    int         jniGlobalRefLoMark;
 
     /*
      * JNI pinned object table (used for primitive arrays).
@@ -649,6 +651,7 @@ struct DvmGlobals {
     AllocRecord*    allocRecords;
     int             allocRecordHead;        /* most-recently-added entry */
     int             allocRecordCount;       /* #of valid entries */
+    int             allocRecordMax;         /* Number of allocated entries. */
 
     /*
      * When a profiler is enabled, this is incremented.  Distinct profilers
@@ -738,6 +741,8 @@ extern struct DvmGlobals gDvm;
 
 #if defined(WITH_JIT)
 
+#define DEFAULT_CODE_CACHE_SIZE 0xffffffff
+
 /* Trace profiling modes.  Ordering matters - off states before on states */
 enum TraceProfilingModes {
     kTraceProfilingDisabled = 0,      // Not profiling
@@ -802,7 +807,7 @@ struct DvmJitGlobals {
     /* How many entries in the JitEntryTable are in use */
     unsigned int jitTableEntriesUsed;
 
-    /* Bytes allocated for the code cache */
+    /* Max bytes allocated for the code cache.  Rough rule of thumb: 1K per 1M of system RAM */
     unsigned int codeCacheSize;
 
     /* Trigger for trace selection */

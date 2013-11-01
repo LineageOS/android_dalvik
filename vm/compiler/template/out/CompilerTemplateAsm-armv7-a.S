@@ -178,12 +178,12 @@ dvmCompiler_TEMPLATE_RETURN:
     ldr     r10, [r0, #offStackSaveArea_prevFrame] @ r10<- saveArea->prevFrame
     ldrb    r8, [rSELF, #offThread_breakFlags] @ r8<- breakFlags
     ldr     rPC, [r0, #offStackSaveArea_savedPc] @ rPC<- saveArea->savedPc
+    ldr     r2, [r10, #(offStackSaveArea_method - sizeofStackSaveArea)]
 #if !defined(WITH_SELF_VERIFICATION)
     ldr     r9,  [r0, #offStackSaveArea_returnAddr] @ r9<- chaining cell ret
 #else
     mov     r9, #0                      @ disable chaining
 #endif
-    ldr     r2, [r10, #(offStackSaveArea_method - sizeofStackSaveArea)]
                                         @ r2<- method we're returning to
     cmp     r2, #0                      @ break frame?
 #if !defined(WITH_SELF_VERIFICATION)
@@ -520,9 +520,8 @@ dvmCompiler_TEMPLATE_MUL_LONG:
     mul     ip, r2, r1                  @  ip<- ZxW
     umull   r9, r10, r2, r0             @  r9/r10 <- ZxX
     mla     r2, r0, r3, ip              @  r2<- YxX + (ZxW)
-    add     r10, r2, r10                @  r10<- r10 + low(ZxW + (YxX))
-    mov     r0,r9
-    mov     r1,r10
+    mov     r0, r9
+    add     r1, r2, r10                 @  r1<- r10 + low(ZxW + (YxX))
     bx      lr
 
 /* ------------------------------ */
@@ -587,485 +586,6 @@ dvmCompiler_TEMPLATE_USHR_LONG:
     movpl   r0, r1, lsr ip              @  if r2 >= 32, r0<-r1 >>> (r2-32)
     mov     r1, r1, lsr r2              @  r1<- r1 >>> r2
     bx      lr
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_ADD_FLOAT_VFP
-dvmCompiler_TEMPLATE_ADD_FLOAT_VFP:
-/* File: armv5te-vfp/TEMPLATE_ADD_FLOAT_VFP.S */
-/* File: armv5te-vfp/fbinop.S */
-    /*
-     * Generic 32-bit floating point operation.  Provide an "instr" line that
-     * specifies an instruction that performs s2 = s0 op s1.
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = op1 address
-     *     r2 = op2 address
-     */
-     flds    s0,[r1]
-     flds    s1,[r2]
-     fadds   s2, s0, s1
-     fsts    s2,[r0]
-     bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_SUB_FLOAT_VFP
-dvmCompiler_TEMPLATE_SUB_FLOAT_VFP:
-/* File: armv5te-vfp/TEMPLATE_SUB_FLOAT_VFP.S */
-/* File: armv5te-vfp/fbinop.S */
-    /*
-     * Generic 32-bit floating point operation.  Provide an "instr" line that
-     * specifies an instruction that performs s2 = s0 op s1.
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = op1 address
-     *     r2 = op2 address
-     */
-     flds    s0,[r1]
-     flds    s1,[r2]
-     fsubs   s2, s0, s1
-     fsts    s2,[r0]
-     bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_MUL_FLOAT_VFP
-dvmCompiler_TEMPLATE_MUL_FLOAT_VFP:
-/* File: armv5te-vfp/TEMPLATE_MUL_FLOAT_VFP.S */
-/* File: armv5te-vfp/fbinop.S */
-    /*
-     * Generic 32-bit floating point operation.  Provide an "instr" line that
-     * specifies an instruction that performs s2 = s0 op s1.
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = op1 address
-     *     r2 = op2 address
-     */
-     flds    s0,[r1]
-     flds    s1,[r2]
-     fmuls   s2, s0, s1
-     fsts    s2,[r0]
-     bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_DIV_FLOAT_VFP
-dvmCompiler_TEMPLATE_DIV_FLOAT_VFP:
-/* File: armv5te-vfp/TEMPLATE_DIV_FLOAT_VFP.S */
-/* File: armv5te-vfp/fbinop.S */
-    /*
-     * Generic 32-bit floating point operation.  Provide an "instr" line that
-     * specifies an instruction that performs s2 = s0 op s1.
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = op1 address
-     *     r2 = op2 address
-     */
-     flds    s0,[r1]
-     flds    s1,[r2]
-     fdivs   s2, s0, s1
-     fsts    s2,[r0]
-     bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_ADD_DOUBLE_VFP
-dvmCompiler_TEMPLATE_ADD_DOUBLE_VFP:
-/* File: armv5te-vfp/TEMPLATE_ADD_DOUBLE_VFP.S */
-/* File: armv5te-vfp/fbinopWide.S */
-    /*
-     * Generic 64-bit floating point operation.  Provide an "instr" line that
-     * specifies an instruction that performs s2 = s0 op s1.
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = op1 address
-     *     r2 = op2 address
-     */
-     fldd    d0,[r1]
-     fldd    d1,[r2]
-     faddd   d2, d0, d1
-     fstd    d2,[r0]
-     bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_SUB_DOUBLE_VFP
-dvmCompiler_TEMPLATE_SUB_DOUBLE_VFP:
-/* File: armv5te-vfp/TEMPLATE_SUB_DOUBLE_VFP.S */
-/* File: armv5te-vfp/fbinopWide.S */
-    /*
-     * Generic 64-bit floating point operation.  Provide an "instr" line that
-     * specifies an instruction that performs s2 = s0 op s1.
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = op1 address
-     *     r2 = op2 address
-     */
-     fldd    d0,[r1]
-     fldd    d1,[r2]
-     fsubd   d2, d0, d1
-     fstd    d2,[r0]
-     bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_MUL_DOUBLE_VFP
-dvmCompiler_TEMPLATE_MUL_DOUBLE_VFP:
-/* File: armv5te-vfp/TEMPLATE_MUL_DOUBLE_VFP.S */
-/* File: armv5te-vfp/fbinopWide.S */
-    /*
-     * Generic 64-bit floating point operation.  Provide an "instr" line that
-     * specifies an instruction that performs s2 = s0 op s1.
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = op1 address
-     *     r2 = op2 address
-     */
-     fldd    d0,[r1]
-     fldd    d1,[r2]
-     fmuld   d2, d0, d1
-     fstd    d2,[r0]
-     bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_DIV_DOUBLE_VFP
-dvmCompiler_TEMPLATE_DIV_DOUBLE_VFP:
-/* File: armv5te-vfp/TEMPLATE_DIV_DOUBLE_VFP.S */
-/* File: armv5te-vfp/fbinopWide.S */
-    /*
-     * Generic 64-bit floating point operation.  Provide an "instr" line that
-     * specifies an instruction that performs s2 = s0 op s1.
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = op1 address
-     *     r2 = op2 address
-     */
-     fldd    d0,[r1]
-     fldd    d1,[r2]
-     fdivd   d2, d0, d1
-     fstd    d2,[r0]
-     bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_DOUBLE_TO_FLOAT_VFP
-dvmCompiler_TEMPLATE_DOUBLE_TO_FLOAT_VFP:
-/* File: armv5te-vfp/TEMPLATE_DOUBLE_TO_FLOAT_VFP.S */
-/* File: armv5te-vfp/funopNarrower.S */
-    /*
-     * Generic 64bit-to-32bit floating point unary operation.  Provide an
-     * "instr" line that specifies an instruction that performs "s0 = op d0".
-     *
-     * For: double-to-int, double-to-float
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = src dalvik register address
-     */
-    /* unop vA, vB */
-    fldd    d0, [r1]                    @ d0<- vB
-    fcvtsd  s0, d0                              @ s0<- op d0
-    fsts    s0, [r0]                    @ vA<- s0
-    bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_DOUBLE_TO_INT_VFP
-dvmCompiler_TEMPLATE_DOUBLE_TO_INT_VFP:
-/* File: armv5te-vfp/TEMPLATE_DOUBLE_TO_INT_VFP.S */
-/* File: armv5te-vfp/funopNarrower.S */
-    /*
-     * Generic 64bit-to-32bit floating point unary operation.  Provide an
-     * "instr" line that specifies an instruction that performs "s0 = op d0".
-     *
-     * For: double-to-int, double-to-float
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = src dalvik register address
-     */
-    /* unop vA, vB */
-    fldd    d0, [r1]                    @ d0<- vB
-    ftosizd  s0, d0                              @ s0<- op d0
-    fsts    s0, [r0]                    @ vA<- s0
-    bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_FLOAT_TO_DOUBLE_VFP
-dvmCompiler_TEMPLATE_FLOAT_TO_DOUBLE_VFP:
-/* File: armv5te-vfp/TEMPLATE_FLOAT_TO_DOUBLE_VFP.S */
-/* File: armv5te-vfp/funopWider.S */
-    /*
-     * Generic 32bit-to-64bit floating point unary operation.  Provide an
-     * "instr" line that specifies an instruction that performs "d0 = op s0".
-     *
-     * For: int-to-double, float-to-double
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = src dalvik register address
-     */
-    /* unop vA, vB */
-    flds    s0, [r1]                    @ s0<- vB
-    fcvtds  d0, s0                              @ d0<- op s0
-    fstd    d0, [r0]                    @ vA<- d0
-    bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_FLOAT_TO_INT_VFP
-dvmCompiler_TEMPLATE_FLOAT_TO_INT_VFP:
-/* File: armv5te-vfp/TEMPLATE_FLOAT_TO_INT_VFP.S */
-/* File: armv5te-vfp/funop.S */
-    /*
-     * Generic 32bit-to-32bit floating point unary operation.  Provide an
-     * "instr" line that specifies an instruction that performs "s1 = op s0".
-     *
-     * For: float-to-int, int-to-float
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = src dalvik register address
-     */
-    /* unop vA, vB */
-    flds    s0, [r1]                    @ s0<- vB
-    ftosizs s1, s0                              @ s1<- op s0
-    fsts    s1, [r0]                    @ vA<- s1
-    bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_INT_TO_DOUBLE_VFP
-dvmCompiler_TEMPLATE_INT_TO_DOUBLE_VFP:
-/* File: armv5te-vfp/TEMPLATE_INT_TO_DOUBLE_VFP.S */
-/* File: armv5te-vfp/funopWider.S */
-    /*
-     * Generic 32bit-to-64bit floating point unary operation.  Provide an
-     * "instr" line that specifies an instruction that performs "d0 = op s0".
-     *
-     * For: int-to-double, float-to-double
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = src dalvik register address
-     */
-    /* unop vA, vB */
-    flds    s0, [r1]                    @ s0<- vB
-    fsitod  d0, s0                              @ d0<- op s0
-    fstd    d0, [r0]                    @ vA<- d0
-    bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_INT_TO_FLOAT_VFP
-dvmCompiler_TEMPLATE_INT_TO_FLOAT_VFP:
-/* File: armv5te-vfp/TEMPLATE_INT_TO_FLOAT_VFP.S */
-/* File: armv5te-vfp/funop.S */
-    /*
-     * Generic 32bit-to-32bit floating point unary operation.  Provide an
-     * "instr" line that specifies an instruction that performs "s1 = op s0".
-     *
-     * For: float-to-int, int-to-float
-     *
-     * On entry:
-     *     r0 = target dalvik register address
-     *     r1 = src dalvik register address
-     */
-    /* unop vA, vB */
-    flds    s0, [r1]                    @ s0<- vB
-    fsitos  s1, s0                              @ s1<- op s0
-    fsts    s1, [r0]                    @ vA<- s1
-    bx      lr
-
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_CMPG_DOUBLE_VFP
-dvmCompiler_TEMPLATE_CMPG_DOUBLE_VFP:
-/* File: armv5te-vfp/TEMPLATE_CMPG_DOUBLE_VFP.S */
-    /*
-     * Compare two floating-point values.  Puts 0, 1, or -1 into the
-     * destination register based on the results of the comparison.
-     *
-     * int compare(x, y) {
-     *     if (x == y) {
-     *         return 0;
-     *     } else if (x < y) {
-     *         return -1;
-     *     } else if (x > y) {
-     *         return 1;
-     *     } else {
-     *         return 1;
-     *     }
-     * }
-     *
-     * On entry:
-     *    r0 = &op1 [vBB]
-     *    r1 = &op2 [vCC]
-     */
-    /* op vAA, vBB, vCC */
-    fldd    d0, [r0]                    @ d0<- vBB
-    fldd    d1, [r1]                    @ d1<- vCC
-    fcmpd  d0, d1                       @ compare (vBB, vCC)
-    mov     r0, #1                      @ r0<- 1 (default)
-    fmstat                              @ export status flags
-    mvnmi   r0, #0                      @ (less than) r0<- -1
-    moveq   r0, #0                      @ (equal) r0<- 0
-    bx      lr
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_CMPL_DOUBLE_VFP
-dvmCompiler_TEMPLATE_CMPL_DOUBLE_VFP:
-/* File: armv5te-vfp/TEMPLATE_CMPL_DOUBLE_VFP.S */
-    /*
-     * Compare two floating-point values.  Puts 0, 1, or -1 into the
-     * destination register based on the results of the comparison.
-     *
-     * int compare(x, y) {
-     *     if (x == y) {
-     *         return 0;
-     *     } else if (x > y) {
-     *         return 1;
-     *     } else if (x < y) {
-     *         return -1;
-     *     } else {
-     *         return -1;
-     *     }
-     * }
-     * On entry:
-     *    r0 = &op1 [vBB]
-     *    r1 = &op2 [vCC]
-     */
-    /* op vAA, vBB, vCC */
-    fldd    d0, [r0]                    @ d0<- vBB
-    fldd    d1, [r1]                    @ d1<- vCC
-    fcmped  d0, d1                      @ compare (vBB, vCC)
-    mvn     r0, #0                      @ r0<- -1 (default)
-    fmstat                              @ export status flags
-    movgt   r0, #1                      @ (greater than) r0<- 1
-    moveq   r0, #0                      @ (equal) r0<- 0
-    bx      lr
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_CMPG_FLOAT_VFP
-dvmCompiler_TEMPLATE_CMPG_FLOAT_VFP:
-/* File: armv5te-vfp/TEMPLATE_CMPG_FLOAT_VFP.S */
-    /*
-     * Compare two floating-point values.  Puts 0, 1, or -1 into the
-     * destination register based on the results of the comparison.
-     *
-     * int compare(x, y) {
-     *     if (x == y) {
-     *         return 0;
-     *     } else if (x < y) {
-     *         return -1;
-     *     } else if (x > y) {
-     *         return 1;
-     *     } else {
-     *         return 1;
-     *     }
-     * }
-     * On entry:
-     *    r0 = &op1 [vBB]
-     *    r1 = &op2 [vCC]
-     */
-    /* op vAA, vBB, vCC */
-    flds    s0, [r0]                    @ d0<- vBB
-    flds    s1, [r1]                    @ d1<- vCC
-    fcmps  s0, s1                      @ compare (vBB, vCC)
-    mov     r0, #1                      @ r0<- 1 (default)
-    fmstat                              @ export status flags
-    mvnmi   r0, #0                      @ (less than) r0<- -1
-    moveq   r0, #0                      @ (equal) r0<- 0
-    bx      lr
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_CMPL_FLOAT_VFP
-dvmCompiler_TEMPLATE_CMPL_FLOAT_VFP:
-/* File: armv5te-vfp/TEMPLATE_CMPL_FLOAT_VFP.S */
-    /*
-     * Compare two floating-point values.  Puts 0, 1, or -1 into the
-     * destination register based on the results of the comparison.
-     *
-     * int compare(x, y) {
-     *     if (x == y) {
-     *         return 0;
-     *     } else if (x > y) {
-     *         return 1;
-     *     } else if (x < y) {
-     *         return -1;
-     *     } else {
-     *         return -1;
-     *     }
-     * }
-     * On entry:
-     *    r0 = &op1 [vBB]
-     *    r1 = &op2 [vCC]
-     */
-    /* op vAA, vBB, vCC */
-    flds    s0, [r0]                    @ d0<- vBB
-    flds    s1, [r1]                    @ d1<- vCC
-    fcmps  s0, s1                      @ compare (vBB, vCC)
-    mvn     r0, #0                      @ r0<- -1 (default)
-    fmstat                              @ export status flags
-    movgt   r0, #1                      @ (greater than) r0<- 1
-    moveq   r0, #0                      @ (equal) r0<- 0
-    bx      lr
-
-/* ------------------------------ */
-    .balign 4
-    .global dvmCompiler_TEMPLATE_SQRT_DOUBLE_VFP
-dvmCompiler_TEMPLATE_SQRT_DOUBLE_VFP:
-/* File: armv5te-vfp/TEMPLATE_SQRT_DOUBLE_VFP.S */
-    /*
-     * 64-bit floating point vfp sqrt operation.
-     * If the result is a NaN, bail out to library code to do
-     * the right thing.
-     *
-     * On entry:
-     *     r2 src addr of op1
-     * On exit:
-     *     r0,r1 = res
-     */
-    fldd    d0, [r2]
-    fsqrtd  d1, d0
-    fcmpd   d1, d1
-    fmstat
-    fmrrd   r0, r1, d1
-    bxeq    lr   @ Result OK - return
-    ldr     r2, .Lsqrt
-    fmrrd   r0, r1, d0   @ reload orig operand
-    bx      r2   @ tail call to sqrt library routine
-
-.Lsqrt:
-    .word   sqrt
 
 /* ------------------------------ */
     .balign 4
@@ -1265,22 +785,23 @@ dvmCompiler_TEMPLATE_STRING_INDEXOF:
      *    r2:   Starting offset in string data
      */
 
+    ldr    r3, [r0, #STRING_FIELDOFF_VALUE]
     ldr    r7, [r0, #STRING_FIELDOFF_OFFSET]
     ldr    r8, [r0, #STRING_FIELDOFF_COUNT]
-    ldr    r0, [r0, #STRING_FIELDOFF_VALUE]
+
 
     /*
      * At this point, we have:
-     *    r0: object pointer
      *    r1: char to match
      *    r2: starting offset
+     *    r3: object pointer (final result -> r0)
      *    r7: offset
      *    r8: string length
      */
 
      /* Build pointer to start of string data */
-     add   r0, #16
-     add   r0, r0, r7, lsl #1
+     add   r3, #16
+     add   r0, r3, r7, lsl #1
 
      /* Save a copy of starting data in r7 */
      mov   r7, r0
@@ -1516,12 +1037,12 @@ dvmCompiler_TEMPLATE_RETURN_PROF:
     ldr     r10, [r0, #offStackSaveArea_prevFrame] @ r10<- saveArea->prevFrame
     ldrb    r8, [rSELF, #offThread_breakFlags] @ r8<- breakFlags
     ldr     rPC, [r0, #offStackSaveArea_savedPc] @ rPC<- saveArea->savedPc
+    ldr     r2, [r10, #(offStackSaveArea_method - sizeofStackSaveArea)]
 #if !defined(WITH_SELF_VERIFICATION)
     ldr     r9,  [r0, #offStackSaveArea_returnAddr] @ r9<- chaining cell ret
 #else
     mov     r9, #0                      @ disable chaining
 #endif
-    ldr     r2, [r10, #(offStackSaveArea_method - sizeofStackSaveArea)]
                                         @ r2<- method we're returning to
     cmp     r2, #0                      @ break frame?
 #if !defined(WITH_SELF_VERIFICATION)
@@ -1974,8 +1495,8 @@ dvmCompiler_TEMPLATE_INVOKE_METHOD_NATIVE_PROF:
 .L__aeabi_cfcmple:
     .word   __aeabi_cfcmple
 
-    .global dmvCompilerTemplateEnd
-dmvCompilerTemplateEnd:
+    .global dvmCompilerTemplateEnd
+dvmCompilerTemplateEnd:
 
 #endif /* WITH_JIT */
 

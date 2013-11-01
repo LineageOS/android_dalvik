@@ -52,6 +52,9 @@ struct MethodTraceState {
 
     int     traceVersion;
     size_t  recordSize;
+
+    bool    samplingEnabled;
+    pthread_t       samplingThreadHandle;
 };
 
 /*
@@ -83,9 +86,18 @@ struct AllocProfState {
  * Start/stop method tracing.
  */
 void dvmMethodTraceStart(const char* traceFileName, int traceFd, int bufferSize,
-        int flags, bool directToDdms);
-bool dvmIsMethodTraceActive(void);
+        int flags, bool directToDdms, bool samplingEnabled, int intervalUs);
 void dvmMethodTraceStop(void);
+
+/*
+ * Returns current method tracing mode.
+ */
+enum TracingMode {
+    TRACING_INACTIVE,
+    METHOD_TRACING_ACTIVE,
+    SAMPLE_PROFILING_ACTIVE,
+};
+TracingMode dvmGetMethodTracingMode(void);
 
 /*
  * Start/stop emulator tracing.
@@ -112,27 +124,45 @@ enum {
  */
 #define TRACE_METHOD_ENTER(_self, _method)                                  \
     do {                                                                    \
-        if (_self->interpBreak.ctl.subMode & kSubModeMethodTrace)           \
-            dvmMethodTraceAdd(_self, _method, METHOD_TRACE_ENTER);          \
+        if (_self->interpBreak.ctl.subMode & kSubModeMethodTrace) {         \
+            u4 cpuClockDiff = 0;                                            \
+            u4 wallClockDiff = 0;                                           \
+            dvmMethodTraceReadClocks(_self, &cpuClockDiff, &wallClockDiff); \
+            dvmMethodTraceAdd(_self, _method, METHOD_TRACE_ENTER,           \
+                              cpuClockDiff, wallClockDiff);                 \
+        }                                                                   \
         if (_self->interpBreak.ctl.subMode & kSubModeEmulatorTrace)         \
             dvmEmitEmulatorTrace(_method, METHOD_TRACE_ENTER);              \
     } while(0);
 #define TRACE_METHOD_EXIT(_self, _method)                                   \
     do {                                                                    \
-        if (_self->interpBreak.ctl.subMode & kSubModeMethodTrace)           \
-            dvmMethodTraceAdd(_self, _method, METHOD_TRACE_EXIT);           \
+        if (_self->interpBreak.ctl.subMode & kSubModeMethodTrace) {         \
+            u4 cpuClockDiff = 0;                                            \
+            u4 wallClockDiff = 0;                                           \
+            dvmMethodTraceReadClocks(_self, &cpuClockDiff, &wallClockDiff); \
+            dvmMethodTraceAdd(_self, _method, METHOD_TRACE_EXIT,            \
+                              cpuClockDiff, wallClockDiff);                 \
+        }                                                                   \
         if (_self->interpBreak.ctl.subMode & kSubModeEmulatorTrace)         \
             dvmEmitEmulatorTrace(_method, METHOD_TRACE_EXIT);               \
     } while(0);
 #define TRACE_METHOD_UNROLL(_self, _method)                                 \
     do {                                                                    \
-        if (_self->interpBreak.ctl.subMode & kSubModeMethodTrace)           \
-            dvmMethodTraceAdd(_self, _method, METHOD_TRACE_UNROLL);         \
+        if (_self->interpBreak.ctl.subMode & kSubModeMethodTrace) {         \
+            u4 cpuClockDiff = 0;                                            \
+            u4 wallClockDiff = 0;                                           \
+            dvmMethodTraceReadClocks(_self, &cpuClockDiff, &wallClockDiff); \
+            dvmMethodTraceAdd(_self, _method, METHOD_TRACE_UNROLL,          \
+                              cpuClockDiff, wallClockDiff);                 \
+        }                                                                   \
         if (_self->interpBreak.ctl.subMode & kSubModeEmulatorTrace)         \
             dvmEmitEmulatorTrace(_method, METHOD_TRACE_UNROLL);             \
     } while(0);
 
-void dvmMethodTraceAdd(struct Thread* self, const Method* method, int action);
+void dvmMethodTraceReadClocks(Thread* self, u4* cpuClockDiff,
+                              u4* wallClockDiff);
+void dvmMethodTraceAdd(struct Thread* self, const Method* method, int action,
+                       u4 cpuClockDiff, u4 wallClockDiff);
 void dvmEmitEmulatorTrace(const Method* method, int action);
 
 void dvmMethodTraceGCBegin(void);

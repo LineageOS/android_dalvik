@@ -666,9 +666,7 @@ static Object* createAnnotationMember(const ClassObject* clazz,
     valueObj = (Object*)avalue.value.l;
 
     /* new member to hold the element */
-    newMember =
-        dvmAllocObject(gDvm.classOrgApacheHarmonyLangAnnotationAnnotationMember,
-        ALLOC_DEFAULT);
+    newMember = dvmAllocObject(gDvm.classLibcoreReflectAnnotationMember, ALLOC_DEFAULT);
     name = dexStringById(pDexFile, elementNameIdx);
     nameObj = dvmCreateStringFromCstr(name);
 
@@ -775,9 +773,8 @@ static Object* processEncodedAnnotation(const ClassObject* clazz,
     JValue result;
 
     if (size > 0) {
-        elementArray = dvmAllocArrayByClass(
-            gDvm.classOrgApacheHarmonyLangAnnotationAnnotationMemberArray,
-            size, ALLOC_DEFAULT);
+        elementArray = dvmAllocArrayByClass(gDvm.classLibcoreReflectAnnotationMemberArray,
+                                            size, ALLOC_DEFAULT);
         if (elementArray == NULL) {
             ALOGE("failed to allocate annotation member array (%d elements)",
                 size);
@@ -833,10 +830,10 @@ static ArrayObject* processAnnotationSet(const ClassObject* clazz,
     const DexAnnotationItem* pAnnoItem;
 
     /* we need these later; make sure they're initialized */
-    if (!dvmIsClassInitialized(gDvm.classOrgApacheHarmonyLangAnnotationAnnotationFactory))
-        dvmInitClass(gDvm.classOrgApacheHarmonyLangAnnotationAnnotationFactory);
-    if (!dvmIsClassInitialized(gDvm.classOrgApacheHarmonyLangAnnotationAnnotationMember))
-        dvmInitClass(gDvm.classOrgApacheHarmonyLangAnnotationAnnotationMember);
+    if (!dvmIsClassInitialized(gDvm.classLibcoreReflectAnnotationFactory))
+        dvmInitClass(gDvm.classLibcoreReflectAnnotationFactory);
+    if (!dvmIsClassInitialized(gDvm.classLibcoreReflectAnnotationMember))
+        dvmInitClass(gDvm.classLibcoreReflectAnnotationMember);
 
     /* count up the number of visible elements */
     size_t count = 0;
@@ -907,10 +904,10 @@ static const DexAnnotationItem* getAnnotationItemFromAnnotationSet(
     u4 typeIdx;
 
     /* we need these later; make sure they're initialized */
-    if (!dvmIsClassInitialized(gDvm.classOrgApacheHarmonyLangAnnotationAnnotationFactory))
-        dvmInitClass(gDvm.classOrgApacheHarmonyLangAnnotationAnnotationFactory);
-    if (!dvmIsClassInitialized(gDvm.classOrgApacheHarmonyLangAnnotationAnnotationMember))
-        dvmInitClass(gDvm.classOrgApacheHarmonyLangAnnotationAnnotationMember);
+    if (!dvmIsClassInitialized(gDvm.classLibcoreReflectAnnotationFactory))
+        dvmInitClass(gDvm.classLibcoreReflectAnnotationFactory);
+    if (!dvmIsClassInitialized(gDvm.classLibcoreReflectAnnotationMember))
+        dvmInitClass(gDvm.classLibcoreReflectAnnotationMember);
 
     for (i = 0; i < (int) pAnnoSet->size; i++) {
         pAnnoItem = dexGetAnnotationItem(pDexFile, pAnnoSet, i);
@@ -1613,8 +1610,10 @@ static int compareMethodStr(DexFile* pDexFile, u4 methodIdx,
  * out reasonably well because it's in sorted order, though we're still left
  * doing a fair number of string comparisons.
  */
-static u4 getMethodIdx(const Method* method)
+u4 dvmGetMethodIdx(const Method* method)
 {
+    if (method->clazz->pDvmDex == NULL) return 0;
+
     DexFile* pDexFile = method->clazz->pDvmDex->pDexFile;
     u4 hi = pDexFile->pHeader->methodIdsSize -1;
     u4 lo = 0;
@@ -1679,7 +1678,7 @@ static const DexAnnotationSetItem* findAnnotationSetForMethod(
              * find the method definition in the DEX file and perform string
              * comparisons on class name, method name, and signature.
              */
-            u4 methodIdx = getMethodIdx(method);
+            u4 methodIdx = dvmGetMethodIdx(method);
             u4 count = dexGetMethodAnnotationsSize(pDexFile, pAnnoDir);
             u4 idx;
 
@@ -1921,10 +1920,12 @@ static int compareFieldStr(DexFile* pDexFile, u4 idx, const Field* field)
 /*
  * Given a field, determine the field's index.
  *
- * This has the same tradeoffs as getMethodIdx.
+ * This has the same tradeoffs as dvmGetMethodIdx.
  */
-static u4 getFieldIdx(const Field* field)
+u4 dvmGetFieldIdx(const Field* field)
 {
+    if (field->clazz->pDvmDex == NULL) return 0;
+
     DexFile* pDexFile = field->clazz->pDvmDex->pDexFile;
     u4 hi = pDexFile->pHeader->fieldIdsSize -1;
     u4 lo = 0;
@@ -1990,7 +1991,7 @@ static const DexAnnotationSetItem* findAnnotationSetForField(const Field* field)
      * find the field definition in the DEX file and perform string
      * comparisons on class name, field name, and signature.
      */
-    u4 fieldIdx = getFieldIdx(field);
+    u4 fieldIdx = dvmGetFieldIdx(field);
     u4 count = dexGetFieldAnnotationsSize(pDexFile, pAnnoDir);
     u4 idx;
 
@@ -2172,7 +2173,7 @@ static const DexParameterAnnotationsItem* findAnnotationsItemForMethod(
      * find the method definition in the DEX file and perform string
      * comparisons on class name, method name, and signature.
      */
-    u4 methodIdx = getMethodIdx(method);
+    u4 methodIdx = dvmGetMethodIdx(method);
     u4 count = dexGetParameterAnnotationsSize(pDexFile, pAnnoDir);
     u4 idx;
 

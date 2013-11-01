@@ -16,20 +16,37 @@
 
 package com.android.dx.merge;
 
-import com.android.dx.dex.TableOfContents;
-import com.android.dx.io.Annotation;
-import com.android.dx.io.ClassDef;
-import com.android.dx.io.DexBuffer;
-import com.android.dx.io.EncodedValue;
-import com.android.dx.io.EncodedValueReader;
-import com.android.dx.io.FieldId;
-import com.android.dx.io.MethodId;
-import com.android.dx.io.ProtoId;
+import com.android.dex.Annotation;
+import com.android.dex.util.ByteOutput;
+import com.android.dex.ClassDef;
+import com.android.dex.Dex;
+import com.android.dex.DexException;
+import com.android.dex.EncodedValue;
+import com.android.dex.EncodedValueReader;
+import static com.android.dex.EncodedValueReader.ENCODED_ANNOTATION;
+import static com.android.dex.EncodedValueReader.ENCODED_ARRAY;
+import static com.android.dex.EncodedValueReader.ENCODED_BOOLEAN;
+import static com.android.dex.EncodedValueReader.ENCODED_BYTE;
+import static com.android.dex.EncodedValueReader.ENCODED_CHAR;
+import static com.android.dex.EncodedValueReader.ENCODED_DOUBLE;
+import static com.android.dex.EncodedValueReader.ENCODED_ENUM;
+import static com.android.dex.EncodedValueReader.ENCODED_FIELD;
+import static com.android.dex.EncodedValueReader.ENCODED_FLOAT;
+import static com.android.dex.EncodedValueReader.ENCODED_INT;
+import static com.android.dex.EncodedValueReader.ENCODED_LONG;
+import static com.android.dex.EncodedValueReader.ENCODED_METHOD;
+import static com.android.dex.EncodedValueReader.ENCODED_NULL;
+import static com.android.dex.EncodedValueReader.ENCODED_SHORT;
+import static com.android.dex.EncodedValueReader.ENCODED_STRING;
+import static com.android.dex.EncodedValueReader.ENCODED_TYPE;
+import com.android.dex.EncodedValueCodec;
+import com.android.dex.FieldId;
+import com.android.dex.Leb128;
+import com.android.dex.MethodId;
+import com.android.dex.ProtoId;
+import com.android.dex.TableOfContents;
+import com.android.dex.TypeList;
 import com.android.dx.util.ByteArrayAnnotatedOutput;
-import com.android.dx.util.ByteInput;
-import com.android.dx.util.ByteOutput;
-import com.android.dx.util.Leb128Utils;
-import com.android.dx.util.Unsigned;
 import java.util.HashMap;
 
 /**
@@ -38,7 +55,7 @@ import java.util.HashMap;
  * {@code strings[5]}.
  */
 public final class IndexMap {
-    private final DexBuffer target;
+    private final Dex target;
     public final int[] stringIds;
     public final short[] typeIds;
     public final short[] protoIds;
@@ -47,10 +64,11 @@ public final class IndexMap {
     private final HashMap<Integer, Integer> typeListOffsets;
     private final HashMap<Integer, Integer> annotationOffsets;
     private final HashMap<Integer, Integer> annotationSetOffsets;
+    private final HashMap<Integer, Integer> annotationSetRefListOffsets;
     private final HashMap<Integer, Integer> annotationDirectoryOffsets;
     private final HashMap<Integer, Integer> staticValuesOffsets;
 
-    public IndexMap(DexBuffer target, TableOfContents tableOfContents) {
+    public IndexMap(Dex target, TableOfContents tableOfContents) {
         this.target = target;
         this.stringIds = new int[tableOfContents.stringIds.size];
         this.typeIds = new short[tableOfContents.typeIds.size];
@@ -60,6 +78,7 @@ public final class IndexMap {
         this.typeListOffsets = new HashMap<Integer, Integer>();
         this.annotationOffsets = new HashMap<Integer, Integer>();
         this.annotationSetOffsets = new HashMap<Integer, Integer>();
+        this.annotationSetRefListOffsets = new HashMap<Integer, Integer>();
         this.annotationDirectoryOffsets = new HashMap<Integer, Integer>();
         this.staticValuesOffsets = new HashMap<Integer, Integer>();
 
@@ -92,6 +111,13 @@ public final class IndexMap {
             throw new IllegalArgumentException();
         }
         annotationSetOffsets.put(oldOffset, newOffset);
+    }
+
+    public void putAnnotationSetRefListOffset(int oldOffset, int newOffset) {
+        if (oldOffset <= 0 || newOffset <= 0) {
+            throw new IllegalArgumentException();
+        }
+        annotationSetRefListOffsets.put(oldOffset, newOffset);
     }
 
     public void putAnnotationDirectoryOffset(int oldOffset, int newOffset) {
@@ -151,6 +177,10 @@ public final class IndexMap {
         return annotationSetOffsets.get(annotationSetOffset);
     }
 
+    public int adjustAnnotationSetRefList(int annotationSetRefListOffset) {
+        return annotationSetRefListOffsets.get(annotationSetRefListOffset);
+    }
+
     public int adjustAnnotationDirectory(int annotationDirectoryOffset) {
         return annotationDirectoryOffsets.get(annotationDirectoryOffset);
     }
@@ -190,117 +220,128 @@ public final class IndexMap {
     }
 
     public SortableType adjust(SortableType sortableType) {
-        return new SortableType(sortableType.getBuffer(), adjust(sortableType.getClassDef()));
+        return new SortableType(sortableType.getDex(), adjust(sortableType.getClassDef()));
     }
 
     public EncodedValue adjustEncodedValue(EncodedValue encodedValue) {
         ByteArrayAnnotatedOutput out = new ByteArrayAnnotatedOutput(32);
-        new EncodedValueTransformer(encodedValue, out).readValue();
+        new EncodedValueTransformer(out).transform(new EncodedValueReader(encodedValue));
         return new EncodedValue(out.toByteArray());
     }
 
     public EncodedValue adjustEncodedArray(EncodedValue encodedArray) {
         ByteArrayAnnotatedOutput out = new ByteArrayAnnotatedOutput(32);
-        new EncodedValueTransformer(encodedArray, out).readArray();
+        new EncodedValueTransformer(out).transformArray(
+                new EncodedValueReader(encodedArray, ENCODED_ARRAY));
         return new EncodedValue(out.toByteArray());
     }
 
     public Annotation adjust(Annotation annotation) {
-        int[] names = annotation.getNames().clone();
-        EncodedValue[] values = annotation.getValues().clone();
-        for (int i = 0; i < names.length; i++) {
-            names[i] = adjustString(names[i]);
-            values[i] = adjustEncodedValue(values[i]);
-        }
+        ByteArrayAnnotatedOutput out = new ByteArrayAnnotatedOutput(32);
+        new EncodedValueTransformer(out).transformAnnotation(
+                annotation.getReader());
         return new Annotation(target, annotation.getVisibility(),
-                adjustType(annotation.getTypeIndex()), names, values);
+                new EncodedValue(out.toByteArray()));
     }
 
     /**
      * Adjust an encoded value or array.
      */
-    private final class EncodedValueTransformer extends EncodedValueReader {
+    private final class EncodedValueTransformer {
         private final ByteOutput out;
 
-        public EncodedValueTransformer(EncodedValue encodedValue, ByteOutput out) {
-            super(encodedValue);
+        public EncodedValueTransformer(ByteOutput out) {
             this.out = out;
         }
 
-        protected void visitArray(int size) {
-            Leb128Utils.writeUnsignedLeb128(out, size);
-        }
-
-        protected void visitAnnotation(int typeIndex, int size) {
-            Leb128Utils.writeUnsignedLeb128(out, adjustType(typeIndex));
-            Leb128Utils.writeUnsignedLeb128(out, size);
-        }
-
-        protected void visitAnnotationName(int index) {
-            Leb128Utils.writeUnsignedLeb128(out, adjustString(index));
-        }
-
-        protected void visitPrimitive(int argAndType, int type, int arg, int size) {
-            out.writeByte(argAndType);
-            copyBytes(in, out, size);
-        }
-
-        protected void visitString(int type, int index) {
-            writeTypeAndSizeAndIndex(type, adjustString(index));
-        }
-
-        protected void visitType(int type, int index) {
-            writeTypeAndSizeAndIndex(type, adjustType(index));
-        }
-
-        protected void visitField(int type, int index) {
-            writeTypeAndSizeAndIndex(type, adjustField(index));
-        }
-
-        protected void visitMethod(int type, int index) {
-            writeTypeAndSizeAndIndex(type, adjustMethod(index));
-        }
-
-        protected void visitArrayValue(int argAndType) {
-            out.writeByte(argAndType);
-        }
-
-        protected void visitAnnotationValue(int argAndType) {
-            out.writeByte(argAndType);
-        }
-
-        protected void visitEncodedBoolean(int argAndType) {
-            out.writeByte(argAndType);
-        }
-
-        protected void visitEncodedNull(int argAndType) {
-            out.writeByte(argAndType);
-        }
-
-        private void writeTypeAndSizeAndIndex(int type, int index) {
-            int byteCount;
-            if (Unsigned.compare(index, 0xff) <= 0) {
-                byteCount = 1;
-            } else if (Unsigned.compare(index, 0xffff) <= 0) {
-                byteCount = 2;
-            } else if (Unsigned.compare(index, 0xffffff) <= 0) {
-                byteCount = 3;
-            } else {
-                byteCount = 4;
-            }
-            int argAndType = ((byteCount - 1) << 5) | type;
-            out.writeByte(argAndType);
-
-            for (int i = 0; i < byteCount; i++) {
-                out.writeByte(index & 0xff);
-                index >>>= 8;
+        public void transform(EncodedValueReader reader) {
+            // TODO: extract this into a helper class, EncodedValueWriter
+            switch (reader.peek()) {
+            case ENCODED_BYTE:
+                EncodedValueCodec.writeSignedIntegralValue(out, ENCODED_BYTE, reader.readByte());
+                break;
+            case ENCODED_SHORT:
+                EncodedValueCodec.writeSignedIntegralValue(out, ENCODED_SHORT, reader.readShort());
+                break;
+            case ENCODED_INT:
+                EncodedValueCodec.writeSignedIntegralValue(out, ENCODED_INT, reader.readInt());
+                break;
+            case ENCODED_LONG:
+                EncodedValueCodec.writeSignedIntegralValue(out, ENCODED_LONG, reader.readLong());
+                break;
+            case ENCODED_CHAR:
+                EncodedValueCodec.writeUnsignedIntegralValue(out, ENCODED_CHAR, reader.readChar());
+                break;
+            case ENCODED_FLOAT:
+                // Shift value left 32 so that right-zero-extension works.
+                long longBits = ((long) Float.floatToIntBits(reader.readFloat())) << 32;
+                EncodedValueCodec.writeRightZeroExtendedValue(out, ENCODED_FLOAT, longBits);
+                break;
+            case ENCODED_DOUBLE:
+                EncodedValueCodec.writeRightZeroExtendedValue(
+                        out, ENCODED_DOUBLE, Double.doubleToLongBits(reader.readDouble()));
+                break;
+            case ENCODED_STRING:
+                EncodedValueCodec.writeUnsignedIntegralValue(
+                        out, ENCODED_STRING, adjustString(reader.readString()));
+                break;
+            case ENCODED_TYPE:
+                EncodedValueCodec.writeUnsignedIntegralValue(
+                        out, ENCODED_TYPE, adjustType(reader.readType()));
+                break;
+            case ENCODED_FIELD:
+                EncodedValueCodec.writeUnsignedIntegralValue(
+                        out, ENCODED_FIELD, adjustField(reader.readField()));
+                break;
+            case ENCODED_ENUM:
+                EncodedValueCodec.writeUnsignedIntegralValue(
+                        out, ENCODED_ENUM, adjustField(reader.readEnum()));
+                break;
+            case ENCODED_METHOD:
+                EncodedValueCodec.writeUnsignedIntegralValue(
+                        out, ENCODED_METHOD, adjustMethod(reader.readMethod()));
+                break;
+            case ENCODED_ARRAY:
+                writeTypeAndArg(ENCODED_ARRAY, 0);
+                transformArray(reader);
+                break;
+            case ENCODED_ANNOTATION:
+                writeTypeAndArg(ENCODED_ANNOTATION, 0);
+                transformAnnotation(reader);
+                break;
+            case ENCODED_NULL:
+                reader.readNull();
+                writeTypeAndArg(ENCODED_NULL, 0);
+                break;
+            case ENCODED_BOOLEAN:
+                boolean value = reader.readBoolean();
+                writeTypeAndArg(ENCODED_BOOLEAN, value ? 1 : 0);
+                break;
+            default:
+                throw new DexException("Unexpected type: " + Integer.toHexString(reader.peek()));
             }
         }
 
-        private void copyBytes(ByteInput in, ByteOutput out, int size) {
+        private void transformAnnotation(EncodedValueReader reader) {
+            int fieldCount = reader.readAnnotation();
+            Leb128.writeUnsignedLeb128(out, adjustType(reader.getAnnotationType()));
+            Leb128.writeUnsignedLeb128(out, fieldCount);
+            for (int i = 0; i < fieldCount; i++) {
+                Leb128.writeUnsignedLeb128(out, adjustString(reader.readAnnotationName()));
+                transform(reader);
+            }
+        }
+
+        private void transformArray(EncodedValueReader reader) {
+            int size = reader.readArray();
+            Leb128.writeUnsignedLeb128(out, size);
             for (int i = 0; i < size; i++) {
-                out.writeByte(in.readByte());
+                transform(reader);
             }
+        }
+
+        private void writeTypeAndArg(int type, int arg) {
+            out.writeByte((arg << 5) | type);
         }
     }
 }

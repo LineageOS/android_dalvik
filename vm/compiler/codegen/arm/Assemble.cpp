@@ -881,6 +881,11 @@ ArmEncodingMap EncodingMap[kArmLast] = {
                  kFmtUnused, -1, -1,
                  IS_BINARY_OP | REG_DEF0 | REG_USE_PC | IS_LOAD,
                  "ldr", "r!0d, [r15pc, -#!1d]", 2),
+    ENCODING_MAP(kThumb2RsbRRR,  0xebd00000, /* setflags encoding */
+                 kFmtBitBlt, 11, 8, kFmtBitBlt, 19, 16, kFmtBitBlt, 3, 0,
+                 kFmtShift, -1, -1,
+                 IS_QUAD_OP | REG_DEF0_USE12 | SETS_CCODES,
+                 "rsb", "r!0d, r!1d, r!2d!3H", 2),
     ENCODING_MAP(kThumbUndefined,       0xde00,
                  kFmtUnused, -1, -1, kFmtUnused, -1, -1, kFmtUnused, -1, -1,
                  kFmtUnused, -1, -1, NO_OPERAND,
@@ -2148,6 +2153,8 @@ void dvmCompilerSortAndPrintTraceProfiles()
     }
 
     ALOGD("JIT: Average execution count -> %d",(int)(sum / numTraces));
+    // How efficiently are we using code cache memory?  Bigger is better.
+    ALOGD("JIT: CodeCache efficiency -> %.2f",(float)sum / (float)gDvmJit.codeCacheByteUsed);
 
     /* Dump the sorted entries. The count of each trace will be reset to 0. */
     for (i=0; i < gDvmJit.jitTableSize; i++) {
