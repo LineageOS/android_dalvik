@@ -37,6 +37,7 @@
 #include <errno.h>
 
 #include <cutils/trace.h>
+#ifdef __BIONIC__
 #include <cutils/properties.h>
 
 static int debugalloc()
@@ -45,6 +46,9 @@ static int debugalloc()
     property_get("dalvik.vm.debug.alloc", value, "0");
     return atoi(value);
 }
+#else
+inline static int debugalloc() { return 1; }
+#endif
 
 static const GcSpec kGcForMallocSpec = {
     true,  /* isPartial */
