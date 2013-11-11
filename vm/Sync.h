@@ -38,6 +38,8 @@
 #define LW_HASH_STATE_MASK 0x3
 #define LW_HASH_STATE_SHIFT 1
 #define LW_HASH_STATE(x) (((x) >> LW_HASH_STATE_SHIFT) & LW_HASH_STATE_MASK)
+#define LW_HASH_STATE_SIZE 2
+#define LW_HASH_STATE_ABS_MASK 0x6
 
 /*
  * Monitor accessor.  Extracts a monitor structure pointer from a fat

@@ -133,9 +133,18 @@ static RegLocation loadValue(CompilationUnit *cUnit, RegLocation rlSrc,
     return rlSrc;
 }
 
+__attribute__((weak)) bool storeValueThumb2(CompilationUnit *cUnit, RegLocation rlDest,
+                                            RegLocation rlSrc)
+{
+    return false;
+}
+
 static void storeValue(CompilationUnit *cUnit, RegLocation rlDest,
                        RegLocation rlSrc)
 {
+    if(storeValueThumb2(cUnit, rlDest, rlSrc))
+        return;
+
     LIR *defStart;
     LIR *defEnd;
     assert(!rlDest.wide);
@@ -204,9 +213,18 @@ static RegLocation loadValueWide(CompilationUnit *cUnit, RegLocation rlSrc,
     return rlSrc;
 }
 
+__attribute__((weak)) bool storeValueWideThumb2(CompilationUnit *cUnit, RegLocation rlDest,
+                                               RegLocation rlSrc)
+{
+    return false;
+}
+
 static void storeValueWide(CompilationUnit *cUnit, RegLocation rlDest,
                            RegLocation rlSrc)
 {
+    if(storeValueWideThumb2(cUnit, rlDest, rlSrc))
+        return;
+
     LIR *defStart;
     LIR *defEnd;
     assert(FPREG(rlSrc.lowReg)==FPREG(rlSrc.highReg));

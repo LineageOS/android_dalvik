@@ -36,7 +36,7 @@ static void setMemRefType(ArmLIR *lir, bool isLoad, int memType)
 {
     u8 *maskPtr;
     u8 mask = ENCODE_MEM;;
-    assert(EncodingMap[lir->opcode].flags & (IS_LOAD | IS_STORE));
+    assert(getEncoding(lir->opcode)->flags & (IS_LOAD | IS_STORE));
     if (isLoad) {
         maskPtr = &lir->useMask;
     } else {
@@ -58,7 +58,7 @@ static void setMemRefType(ArmLIR *lir, bool isLoad, int memType)
             break;
         case kMustNotAlias:
             /* Currently only loads can be marked as kMustNotAlias */
-            assert(!(EncodingMap[lir->opcode].flags & IS_STORE));
+            assert(!(getEncoding(lir->opcode)->flags & IS_STORE));
             *maskPtr |= ENCODE_MUST_NOT_ALIAS;
             break;
         default:
@@ -94,7 +94,6 @@ static inline u8 getRegMaskCommon(int reg)
     u8 seed;
     int shift;
     int regId = reg & 0x1f;
-
     /*
      * Each double register is equal to a pair of single-precision FP registers
      */
@@ -120,6 +119,16 @@ static inline void setupRegMask(u8 *mask, int reg)
     *mask |= getRegMaskCommon(reg);
 }
 
+/* skip certain def masks */
+__attribute__((weak)) bool skipDefRegMasks(ArmLIR *lir) {
+    return false;
+}
+
+/* skip certain use masks */
+__attribute__((weak)) bool skipUseRegMasks(ArmLIR *lir) {
+    return false;
+}
+
 /*
  * Set up the proper fields in the resource mask
  */
@@ -133,7 +142,7 @@ static void setupResourceMasks(ArmLIR *lir)
         return;
     }
 
-    flags = EncodingMap[lir->opcode].flags;
+    flags = getEncoding(lir->opcode)->flags;
 
     /* Set up the mask for resources that are updated */
     if (flags & (IS_LOAD | IS_STORE)) {
@@ -150,12 +159,14 @@ static void setupResourceMasks(ArmLIR *lir)
         return;
     }
 
-    if (flags & REG_DEF0) {
-        setupRegMask(&lir->defMask, lir->operands[0]);
-    }
+    if (!skipDefRegMasks(lir)) {
+        if (flags & REG_DEF0) {
+            setupRegMask(&lir->defMask, lir->operands[0]);
+        }
 
-    if (flags & REG_DEF1) {
-        setupRegMask(&lir->defMask, lir->operands[1]);
+        if (flags & REG_DEF1) {
+            setupRegMask(&lir->defMask, lir->operands[1]);
+        }
     }
 
     if (flags & REG_DEF_SP) {
@@ -178,6 +189,10 @@ static void setupResourceMasks(ArmLIR *lir)
         lir->defMask |= ENCODE_CCODE;
     }
 
+    if (flags & SETS_FPSTATUS) {
+        lir->defMask |= ENCODE_FP_STATUS;
+    }
+
     /* Conservatively treat the IT block */
     if (flags & IS_IT) {
         lir->defMask = ENCODE_ALL;
@@ -185,10 +200,11 @@ static void setupResourceMasks(ArmLIR *lir)
 
     if (flags & (REG_USE0 | REG_USE1 | REG_USE2 | REG_USE3)) {
         int i;
-
-        for (i = 0; i < 4; i++) {
-            if (flags & (1 << (kRegUse0 + i))) {
-                setupRegMask(&lir->useMask, lir->operands[i]);
+        if (!skipUseRegMasks(lir)) {
+            for (i = 0; i < 4; i++) {
+                if (flags & (1 << (kRegUse0 + i))) {
+                    setupRegMask(&lir->useMask, lir->operands[i]);
+                }
             }
         }
     }
@@ -213,6 +229,10 @@ static void setupResourceMasks(ArmLIR *lir)
         lir->useMask |= ENCODE_CCODE;
     }
 
+    if (flags & USES_FPSTATUS) {
+        lir->useMask |= ENCODE_FP_STATUS;
+    }
+
     /* Fixup for kThumbPush/lr and kThumbPop/pc */
     if (opcode == kThumbPush || opcode == kThumbPop) {
         u8 r8Mask = getRegMaskCommon(r8);
@@ -231,7 +251,7 @@ static void setupResourceMasks(ArmLIR *lir)
  */
 static void relaxBranchMasks(ArmLIR *lir)
 {
-    int flags = EncodingMap[lir->opcode].flags;
+    int flags = getEncoding(lir->opcode)->flags;
 
     /* Make sure only branch instructions are passed here */
     assert(flags & IS_BRANCH);
@@ -264,7 +284,7 @@ static void relaxBranchMasks(ArmLIR *lir)
 static ArmLIR *newLIR0(CompilationUnit *cUnit, ArmOpcode opcode)
 {
     ArmLIR *insn = (ArmLIR *) dvmCompilerNew(sizeof(ArmLIR), true);
-    assert(isPseudoOpcode(opcode) || (EncodingMap[opcode].flags & NO_OPERAND));
+    assert(isPseudoOpcode(opcode) || (getEncoding(opcode)->flags & NO_OPERAND));
     insn->opcode = opcode;
     setupResourceMasks(insn);
     dvmCompilerAppendLIR(cUnit, (LIR *) insn);
@@ -275,7 +295,7 @@ static ArmLIR *newLIR1(CompilationUnit *cUnit, ArmOpcode opcode,
                            int dest)
 {
     ArmLIR *insn = (ArmLIR *) dvmCompilerNew(sizeof(ArmLIR), true);
-    assert(isPseudoOpcode(opcode) || (EncodingMap[opcode].flags & IS_UNARY_OP));
+    assert(isPseudoOpcode(opcode) || (getEncoding(opcode)->flags & IS_UNARY_OP));
     insn->opcode = opcode;
     insn->operands[0] = dest;
     setupResourceMasks(insn);
@@ -288,7 +308,7 @@ static ArmLIR *newLIR2(CompilationUnit *cUnit, ArmOpcode opcode,
 {
     ArmLIR *insn = (ArmLIR *) dvmCompilerNew(sizeof(ArmLIR), true);
     assert(isPseudoOpcode(opcode) ||
-           (EncodingMap[opcode].flags & IS_BINARY_OP));
+           (getEncoding(opcode)->flags & IS_BINARY_OP));
     insn->opcode = opcode;
     insn->operands[0] = dest;
     insn->operands[1] = src1;
@@ -301,11 +321,11 @@ static ArmLIR *newLIR3(CompilationUnit *cUnit, ArmOpcode opcode,
                            int dest, int src1, int src2)
 {
     ArmLIR *insn = (ArmLIR *) dvmCompilerNew(sizeof(ArmLIR), true);
-    if (!(EncodingMap[opcode].flags & IS_TERTIARY_OP)) {
+    if (!(getEncoding(opcode)->flags & IS_TERTIARY_OP)) {
         ALOGE("Bad LIR3: %s[%d]",EncodingMap[opcode].name,opcode);
     }
     assert(isPseudoOpcode(opcode) ||
-           (EncodingMap[opcode].flags & IS_TERTIARY_OP));
+           (getEncoding(opcode)->flags & IS_TERTIARY_OP));
     insn->opcode = opcode;
     insn->operands[0] = dest;
     insn->operands[1] = src1;
@@ -317,11 +337,11 @@ static ArmLIR *newLIR3(CompilationUnit *cUnit, ArmOpcode opcode,
 
 #if defined(_ARMV7_A) || defined(_ARMV7_A_NEON)
 static ArmLIR *newLIR4(CompilationUnit *cUnit, ArmOpcode opcode,
-                           int dest, int src1, int src2, int info)
+                       int dest, int src1, int src2, int info)
 {
     ArmLIR *insn = (ArmLIR *) dvmCompilerNew(sizeof(ArmLIR), true);
     assert(isPseudoOpcode(opcode) ||
-           (EncodingMap[opcode].flags & IS_QUAD_OP));
+           (getEncoding(opcode)->flags & IS_QUAD_OP));
     insn->opcode = opcode;
     insn->operands[0] = dest;
     insn->operands[1] = src1;

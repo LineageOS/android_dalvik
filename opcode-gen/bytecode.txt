@@ -327,7 +327,7 @@ op   ed ^throw-verification-error   20bc n varies        optimized|throw
 op   ee +execute-inline             35mi n inline-method optimized|continue|throw
 op   ef +execute-inline/range       3rmi n inline-method optimized|continue|throw
 
-op   f0 +invoke-object-init/range   35c  n method-ref    optimized|continue|throw|invoke
+op   f0 +invoke-object-init/range   3rc  n method-ref    optimized|continue|throw|invoke
 op   f1 +return-void-barrier        10x  n none          optimized|return
 op   f2 +iget-quick                 22cs y field-offset  optimized|continue|throw
 op   f3 +iget-wide-quick            22cs y field-offset  optimized|continue|throw

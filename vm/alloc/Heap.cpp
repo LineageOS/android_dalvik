@@ -29,16 +29,17 @@
 #include "alloc/HeapSource.h"
 #include "alloc/MarkSweep.h"
 #include "os/os.h"
-
 #include <sys/mman.h>
+#include "hprof/Hprof.h"
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <limits.h>
 #include <errno.h>
-
 #include <cutils/trace.h>
-#ifdef __BIONIC__
-#include <cutils/properties.h>
+#include <cutils/process_name.h>
+
+#ifdef HAVE_ANDROID_OS
+#include "cutils/properties.h"
 
 static int debugalloc()
 {
@@ -196,8 +197,13 @@ static void gcForMalloc(bool clearSoftReferences)
  */
 static void *tryMalloc(size_t size)
 {
+#ifdef HAVE_ANDROID_OS
+    char prop_value[PROPERTY_VALUE_MAX] = {'\0'};
+#endif
+    char* hprof_file = NULL;
     void *ptr;
-
+    int result = -1;
+    int debug_oom = 0;
 //TODO: figure out better heuristics
 //    There will be a lot of churn if someone allocates a bunch of
 //    big objects in a row, and we hit the frag case each time.
@@ -212,7 +218,6 @@ static void *tryMalloc(size_t size)
     if (ptr != NULL) {
         return ptr;
     }
-
     /*
      * The allocation failed.  If the GC is running, block until it
      * completes and retry.
@@ -252,7 +257,6 @@ static void *tryMalloc(size_t size)
                 FRACTIONAL_MB(newHeapSize), size);
         return ptr;
     }
-
     /* Most allocations should have succeeded by now, so the heap
      * is really full, really fragmented, or the requested size is
      * really big.  Do another GC, collecting SoftReferences this
@@ -273,6 +277,46 @@ static void *tryMalloc(size_t size)
 //TODO: tell the HeapSource to dump its state
     dvmDumpThread(dvmThreadSelf(), false);
 
+#ifdef HAVE_ANDROID_OS
+    /* Read the property to check whether hprof should be generated or not */
+    property_get("dalvik.debug.oom",prop_value,"0");
+    debug_oom = atoi(prop_value);
+#endif
+    if(debug_oom == 1) {
+        LOGE_HEAP("Generating hprof for process: %s PID: %d",
+                    get_process_name(),getpid());
+        dvmUnlockHeap();
+
+        /* allocate memory for hprof file name. Allocate approx 30 bytes.
+         * 11 byte for directory path, 10 bytes for pid, 6 bytes for
+         * extension + "\0'.
+         */
+        hprof_file = (char*) malloc (sizeof(char) * 30);
+
+        /* creation of hprof will fail if /data/misc permission is not set
+         * to 0777.
+         */
+
+        if(hprof_file) {
+            snprintf(hprof_file,30,"/data/misc/%d.hprof",getpid());
+            LOGE_HEAP("Generating hprof in file: %s",hprof_file );
+
+            result = hprofDumpHeap(hprof_file, -1, false);
+            free(hprof_file);
+        } else {
+            LOGE_HEAP("Failed to allocate memory for file name."
+                      "Generating hprof in default file: /data/misc/app_oom.hprof");
+            result = hprofDumpHeap("/data/misc/app_oom.hprof", -1, false);
+        }
+        dvmLockMutex(&gDvm.gcHeapLock);
+
+        if (result != 0) {
+            /* ideally we'd throw something more specific based on actual failure */
+            dvmThrowRuntimeException(
+                "Failure during heap dump; check log output for details");
+            LOGE_HEAP(" hprofDumpHeap failed with result: %d ",result);
+        }
+    }
     return NULL;
 }
 
