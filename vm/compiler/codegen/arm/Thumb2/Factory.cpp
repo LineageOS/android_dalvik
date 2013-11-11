@@ -361,6 +361,10 @@ static ArmLIR *opRegRegShift(CompilationUnit *cUnit, OpKind op, int rDestSrc1,
             assert(shift == 0);
             opcode = (thumbForm) ? kThumbMul : kThumb2MulRRR;
             break;
+        case kOpDiv:
+            assert(shift == 0);
+            opcode = kThumb2SdivRRR;
+            break;
         case kOpMvn:
             opcode = (thumbForm) ? kThumbMvn : kThumb2MvnRR;
             break;
@@ -474,6 +478,13 @@ static ArmLIR *opRegRegRegShift(CompilationUnit *cUnit, OpKind op,
             assert(shift == 0);
             opcode = kThumb2MulRRR;
             break;
+        case kOpDiv:
+            assert(shift == 0);
+            opcode = kThumb2SdivRRR;
+            break;
+        case kOpRem:
+            opcode = kThumb2MlsRRRR;
+            break;
         case kOpOr:
             opcode = kThumb2OrrRRR;
             break;
@@ -513,6 +524,12 @@ static ArmLIR *opRegRegReg(CompilationUnit *cUnit, OpKind op, int rDest,
                            int rSrc1, int rSrc2)
 {
     return opRegRegRegShift(cUnit, op, rDest, rSrc1, rSrc2, 0);
+}
+
+static ArmLIR *opRegRegRegReg(CompilationUnit *cUnit, OpKind op, int rDest,
+                           int rSrc1, int rSrc2, int rSrc3)
+{
+    return opRegRegRegShift(cUnit, op, rDest, rSrc1, rSrc2, rSrc3);
 }
 
 __attribute__((weak)) ArmLIR *opRegRegImmThumb2(CompilationUnit *cUnit, OpKind op, int rDest,
@@ -615,6 +632,10 @@ static ArmLIR *opRegRegImm(CompilationUnit *cUnit, OpKind op, int rDest,
             //TUNING: power of 2, shift & add
             modImm = -1;
             altOpcode = kThumb2MulRRR;
+            break;
+        case kOpDiv:
+            modImm = -1;
+            altOpcode = kThumb2SdivRRR;
             break;
         case kOpCmp: {
             int modImm = modifiedImmediate(value);
