@@ -56,6 +56,9 @@ include $(LOCAL_PATH)/ReconfigureDvm.mk
 # Overwrite default settings
 LOCAL_MODULE := libdvm
 LOCAL_CFLAGS += $(target_smp_flag)
+ifeq ($(TARGET_ARCH_LOWMEM),true)
+  LOCAL_CFLAGS += -DDALVIK_LOWMEM
+endif
 
 # Define WITH_ADDRESS_SANITIZER to build an ASan-instrumented version of the
 # library in /system/lib/asan/libdvm.so.
@@ -150,6 +153,9 @@ ifeq ($(WITH_HOST_DALVIK),true)
     LOCAL_CFLAGS += $(host_inline_arg5_flag)
     # TODO: split out the asflags.
     LOCAL_ASFLAGS := $(LOCAL_CFLAGS)
+    ifeq ($(TARGET_ARCH_LOWMEM),true)
+      LOCAL_CFLAGS += -DDALVIK_LOWMEM
+    endif
     LOCAL_MODULE_TAGS := optional
     LOCAL_MODULE := libdvm
 
