@@ -1047,12 +1047,18 @@ static AssemblerStatus assembleInstructions(CompilationUnit *cUnit,
             intptr_t target = targetLIR->generic.offset;
             int delta = target - pc;
             if ((lir->opcode == kThumbBCond) && (delta > 254 || delta < -256)) {
-                if (cUnit->printMe) {
-                    ALOGD("kThumbBCond@%x: delta=%d", lir->generic.offset,
-                         delta);
-                    dvmCompilerCodegenDump(cUnit);
+                if (delta <= 1048574 && delta >= -1048576) {
+                    /* convert T1 branch to T3 */
+                    lir->opcode = kThumb2BCond;
+                    return kRetryAll;
+                } else {
+                    if (cUnit->printMe) {
+                        ALOGD("kThumbBCond@%x: delta=%d", lir->generic.offset,
+                            delta);
+                        dvmCompilerCodegenDump(cUnit);
+                    }
+                    return kRetryHalve;
                 }
-                return kRetryHalve;
             }
             lir->operands[0] = delta >> 1;
         } else if (lir->opcode == kThumbBUncond) {
