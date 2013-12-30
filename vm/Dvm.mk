@@ -264,12 +264,16 @@ ifeq ($(dvm_arch),arm)
 		compiler/template/out/CompilerTemplateAsm-$(dvm_arch_variant).S
   endif
   ifeq ($(call is-vendor-board-platform,QCOM),true)
-  ifeq ($(WITH_QC_PERF),true)
-    LOCAL_WHOLE_STATIC_LIBRARIES += libqc-dalvik
-    LOCAL_SHARED_LIBRARIES += libqc-opt
-    LOCAL_CFLAGS += -DWITH_QC_PERF
+    ifeq ($(WITH_QC_PERF),true)
+      LOCAL_WHOLE_STATIC_LIBRARIES += libqc-dalvik
+      LOCAL_SHARED_LIBRARIES += libqc-opt
+      LOCAL_CFLAGS += -DWITH_QC_PERF
+    endif
+    LOCAL_CFLAGS += -DHAVE_HALFWORD_ATOMIC_MEMMOVE
+  else
+  ifeq ($(TARGET_CPU_VARIANT),cortex-a15)
+    LOCAL_CFLAGS += -DHAVE_HALFWORD_ATOMIC_MEMMOVE
   endif
-  LOCAL_CFLAGS += -DHAVE_HALFWORD_ATOMIC_MEMMOVE
   endif
 endif
 
