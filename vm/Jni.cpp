@@ -1248,6 +1248,7 @@ static jclass FindClass(JNIEnv* env, const char* name) {
 
     char* descriptor = dvmNameToDescriptor(name);
     if (descriptor == NULL) {
+        dvmReleaseTrackedAlloc(trackedLoader, ts.self());
         return NULL;
     }
     ClassObject* clazz = dvmFindClassNoInit(descriptor, loader);
