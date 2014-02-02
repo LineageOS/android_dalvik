@@ -275,7 +275,6 @@ static void genMultiplyByTwoBitMultiplier(CompilationUnit *cUnit,
     opRegRegImm(cUnit, kOpMul, rlResult.lowReg, rlSrc.lowReg, lit);
 }
 
-#ifndef WITH_QC_PERF
 static void genMultiplyByShiftAndReverseSubtract(CompilationUnit *cUnit,
         RegLocation rlSrc, RegLocation rlResult, int lit)
 {
@@ -284,6 +283,7 @@ static void genMultiplyByShiftAndReverseSubtract(CompilationUnit *cUnit,
     opRegRegReg(cUnit, kOpSub, rlResult.lowReg, tReg, rlSrc.lowReg);
 }
 
+#ifndef WITH_QC_PERF
 /*
  * Generate array load
  */

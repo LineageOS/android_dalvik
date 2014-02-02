@@ -2342,14 +2342,7 @@ static bool handleEasyMultiply(CompilationUnit *cUnit,
     } else {
         // Reverse subtract: (src << (shift + 1)) - src.
         assert(powerOfTwoMinusOne);
-#ifdef WITH_QC_PERF
-        // TODO: rsb dst, src, src lsl#lowestSetBit(lit + 1)
-        int tReg = dvmCompilerAllocTemp(cUnit);
-        opRegRegImm(cUnit, kOpLsl, tReg, rlSrc.lowReg, lowestSetBit(lit + 1));
-        opRegRegReg(cUnit, kOpSub, rlResult.lowReg, tReg, rlSrc.lowReg);
-#else
         genMultiplyByShiftAndReverseSubtract(cUnit, rlSrc, rlResult, lowestSetBit(lit + 1));
-#endif
     }
     storeValue(cUnit, rlDest, rlResult);
     return true;
