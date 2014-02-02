@@ -433,8 +433,6 @@ typedef enum ArmOpcode {
                                     rd[15-12] [10100000] rm[3..0] */
     kThumb2Vdivd,        /* vdiv vd, vn, vm [111011101000] rn[19..16]
                                     rd[15-12] [10110000] rm[3..0] */
-    kThumb2VmlaF64,      /* vmla.F64 vd, vn, vm [111011100000] vn[19..16]
-                                     vd[15..12] [10110000] vm[3..0] */
     kThumb2VcvtIF,       /* vcvt.F32 vd, vm [1110111010111000] vd[15..12]
                                     [10101100] vm[3..0] */
     kThumb2VcvtID,       /* vcvt.F64 vd, vm [1110111010111000] vd[15..12]
@@ -447,10 +445,6 @@ typedef enum ArmOpcode {
                                        [10101100] vm[3..0] */
     kThumb2VcvtDF,       /* vcvt.F32.F64 vd, vm [1110111010110111] vd[15..12]
                                        [10111100] vm[3..0] */
-    kThumb2VcvtF64S32,   /* vcvt.F64.S32 vd, vm [1110111010111000] vd[15..12]
-                                       [10111100] vm[3..0] */
-    kThumb2VcvtF64U32,   /* vcvt.F64.U32 vd, vm [1110111010111000] vd[15..12]
-                                       [10110100] vm[3..0] */
     kThumb2Vsqrts,       /* vsqrt.f32 vd, vm [1110111010110001] vd[15..12]
                                        [10101100] vm[3..0] */
     kThumb2Vsqrtd,       /* vsqrt.f64 vd, vm [1110111010110001] vd[15..12]
@@ -620,14 +614,8 @@ typedef enum ArmOpcode {
                                   [10110000] imm4l[3-0] */
     kThumb2Mla,          /* mla [111110110000] rn[19-16] ra[15-12] rd[7-4]
                                   [0000] rm[3-0] */
-    kThumb2MlsRRRR,      /* mls [1111101110000] rn[19-16] ra[15-12] rd[11-8]
-                                  [0001] rm[3-0] */
     kThumb2Umull,        /* umull [111110111010] rn[19-16], rdlo[15-12]
                                   rdhi[11-8] [0000] rm[3-0] */
-    kThumb2SdivRRR,      /* sdiv [1111101111001 rn[19-16] [1111] rd[11-8]
-                                  [1111] rm[3-0] */
-    kThumb2UdivRRR,      /* udiv [1111101111011 rn[19-16] [1111] rd[11-8]
-                                  [1111] rm[3-0] */
     kThumb2Ldrex,        /* ldrex [111010000101] rn[19-16] rt[11-8] [1111]
                                   imm8[7-0] */
     kThumb2Strex,        /* strex [111010000100] rn[19-16] rt[11-8] rd[11-8]
