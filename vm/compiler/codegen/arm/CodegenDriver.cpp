@@ -4417,8 +4417,7 @@ void dvmCompilerMIR2LIR(CompilationUnit *cUnit)
              * Append the label pseudo LIR first. Chaining cells will be handled
              * separately afterwards.
              */
-            if(bb->blockType != kDalvikByteCode || !bb->hidden)
-                dvmCompilerAppendLIR(cUnit, (LIR *) &labelList[i]);
+            dvmCompilerAppendLIR(cUnit, (LIR *) &labelList[i]);
         }
 
         if (bb->blockType == kEntryBlock) {

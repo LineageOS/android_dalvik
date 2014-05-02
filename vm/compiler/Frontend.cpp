@@ -1484,11 +1484,6 @@ static bool exhaustTrace(CompilationUnit *cUnit, BasicBlock *curBlock)
     return true;
 }
 
-/* placeholder of future passes */
-__attribute__((weak)) void dvmExtraPass(CompilationUnit *cUnit)
-{
-}
-
 /* Compile a loop */
 static bool compileLoop(CompilationUnit *cUnit, unsigned int startOffset,
                         JitTraceDescription *desc, int numMaxInsts,
@@ -1579,14 +1574,11 @@ static bool compileLoop(CompilationUnit *cUnit, unsigned int startOffset,
 
     dvmCompilerLoopOpt(cUnit);
 
-
     /*
      * Change the backward branch to the backward chaining cell after dataflow
      * analsys/optimizations are done.
      */
     dvmCompilerInsertBackwardChaining(cUnit);
-
-    dvmExtraPass(cUnit);
 
 #if defined(ARCH_IA32)
     /* Convert MIR to LIR, etc. */
