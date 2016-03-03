@@ -49,7 +49,7 @@ public class DexData {
      * @throws IOException if we encounter a problem while reading
      * @throws DexDataException if the DEX contents look bad
      */
-    public void load() throws IOException {
+    public void load(boolean includeCMClasses) throws IOException {
         parseHeaderItem();
 
         loadStrings();
@@ -59,7 +59,7 @@ public class DexData {
         loadMethodIds();
         loadClassDefs();
 
-        markInternalClasses();
+        markInternalClasses(includeCMClasses);
     }
 
     /**
@@ -288,7 +288,7 @@ public class DexData {
      * Sets the "internal" flag on type IDs which are defined in the
      * DEX file or within the VM (e.g. primitive classes and arrays).
      */
-    void markInternalClasses() {
+    void markInternalClasses(boolean includeCMClasses) {
         for (int i = mClassDefs.length -1; i >= 0; i--) {
             mTypeIds[mClassDefs[i].classIdx].internal = true;
         }
@@ -296,6 +296,10 @@ public class DexData {
         for (int i = 0; i < mTypeIds.length; i++) {
             String className = mStrings[mTypeIds[i].descriptorIdx];
 
+            if (includeCMClasses && className.startsWith("Lcyanogenmod")) {
+                mTypeIds[i].internal = false;
+                continue;
+            }
             if (className.length() == 1) {
                 // primitive class
                 mTypeIds[i].internal = true;
