@@ -216,9 +216,11 @@ public class Output {
                 out.println(IN3 + "<constructor name=\"" +
                     classNameOnly(declClassName) + "\">");
             } else {
-                out.println(IN3 + "<method name=\"" + mref.getName() +
-                    "\" return=\"" + descriptorToDot(mref.getReturnTypeName()) +
-                    "\">");
+                if (!mref.getName().equals("<clinit>")) {
+                    out.println(IN3 + "<method name=\"" + mref.getName() +
+                            "\" return=\"" + descriptorToDot(mref.getReturnTypeName()) +
+                            "\">");
+                }
             }
             String[] args = mref.getArgumentTypeNames();
             for (int j = 0; j < args.length; j++) {
@@ -228,7 +230,9 @@ public class Output {
             if (constructor) {
                 out.println(IN3 + "</constructor>");
             } else {
-                out.println(IN3 + "</method>");
+                if (!mref.getName().equals("<clinit>")) {
+                    out.println(IN3 + "</method>");
+                }
             }
         }
     }
