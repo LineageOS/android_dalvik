@@ -40,6 +40,11 @@ public class Main {
     private boolean mJustClasses = false;
 
     /**
+     * Whether to include "lineageos" namespace classes in the dump.
+     */
+    private boolean mIncludeLineageClasses = false;
+
+    /**
      * Entry point.
      */
     public static void main(String[] args) {
@@ -65,7 +70,7 @@ public class Main {
                 List<RandomAccessFile> rafs = openInputFiles(fileName);
                 for (RandomAccessFile raf : rafs) {
                     DexData dexData = new DexData(raf);
-                    dexData.load();
+                    dexData.load(mIncludeLineageClasses);
                     Output.generate(dexData, mOutputFormat, mJustClasses);
                     raf.close();
                 }
@@ -220,6 +225,8 @@ public class Main {
                 //System.out.println("+++ using format " + mOutputFormat);
             } else if (arg.equals("--just-classes")) {
                 mJustClasses = true;
+            } else if (arg.equals("--include-lineage-classes")) {
+                mIncludeLineageClasses = true;
             } else {
                 System.err.println("Unknown option '" + arg + "'");
                 throw new UsageException();
