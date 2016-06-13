@@ -224,6 +224,10 @@ public class Output {
             }
             String[] args = mref.getArgumentTypeNames();
             for (int j = 0; j < args.length; j++) {
+                if (classNameOnly(declClassName).endsWith(("$1$1"))) {
+                    //skip instance self parameter in nested anonymous inner classes
+                    j++;
+                }
                 out.println(IN4 + "<parameter type=\"" +
                     descriptorToDot(args[j]) + "\"/>");
             }
