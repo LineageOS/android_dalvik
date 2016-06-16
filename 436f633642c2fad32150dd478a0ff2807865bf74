@@ -22,6 +22,30 @@
       "revId": "436f633642c2fad32150dd478a0ff2807865bf74",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5faad753_f6dd0570",
+        "filename": "tools/dexdeps/src/com/android/dexdeps/Output.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 227,
+      "author": {
+        "id": 9813
+      },
+      "writtenOn": "2016-06-16T19:23:16Z",
+      "side": 1,
+      "message": "true, I did this attempting to fix the inner anonymous class failing to be picked up by the static analysis for coverage (for danesh). I\u0027ll probably just abandon this.",
+      "parentUuid": "5faad753_36f07dfd",
+      "range": {
+        "startLine": 227,
+        "startChar": 60,
+        "endLine": 227,
+        "endChar": 64
+      },
+      "revId": "436f633642c2fad32150dd478a0ff2807865bf74",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
