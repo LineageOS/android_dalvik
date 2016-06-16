@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5faad753_36f07dfd",
+        "filename": "tools/dexdeps/src/com/android/dexdeps/Output.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 227,
+      "author": {
+        "id": 9199
+      },
+      "writtenOn": "2016-06-16T19:22:13Z",
+      "side": 1,
+      "message": "Shouldn\u0027t this be matched using a regex?  Won\u0027t $1$1 only cover the first inner-inner class of the first inner class?",
+      "range": {
+        "startLine": 227,
+        "startChar": 60,
+        "endLine": 227,
+        "endChar": 64
+      },
+      "revId": "436f633642c2fad32150dd478a0ff2807865bf74",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
